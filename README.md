@@ -146,9 +146,9 @@ You need **JDK** and the project's Gradle wrapper. Gradle downloads everything e
 # Fedora Linux example
 sudo dnf install adoptium-temurin-java-repository
 sudo dnf install temurin-21-jdk    # NeoForge 1.21.1
-sudo dnf install temurin-25-jdk    # Fabric 26.2 (or install Temurin 25)
+sudo dnf install temurin-25-jdk    # Fabric 26.2
 
-sudo alternatives --config java    # Change Java versions
+sudo alternatives --config javac    # Change Java versions
 
 ./gradlew build
 # jar ends up in build/libs/
