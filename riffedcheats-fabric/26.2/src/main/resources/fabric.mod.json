@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "riffedcheats",
+  "version": "${version}",
+  "name": "RiffedCheats",
+  "description": "Client-side cheat / trainer menu inspired by CheatUtils, styled like YimMenuV2. Works in your own worlds, and on servers only with operator rights.",
+  "authors": ["RiffedCheats"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": { "client": ["dev.riffedcheats.RiffedCheats"] },
+  "mixins": [ { "config": "riffedcheats.mixins.json", "environment": "client" } ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
