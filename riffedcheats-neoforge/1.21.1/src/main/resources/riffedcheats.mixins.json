@@ -1,0 +1,8 @@
+{
+  "required": false,
+  "minVersion": "0.8.5",
+  "package": "dev.riffedcheats.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": ["BlockMixin"],
+  "injectors": { "defaultRequire": 0 }
+}
