@@ -75,7 +75,7 @@ The menu is designed to be a **control panel for admins and for your own worlds*
 | Someone else's server **and you are an Operator** | Fully working. |
 | Someone else's server **and you are not an Operator** | Everything is disabled. The menu only shows a warning. |
 
-The check is live. If an admin runs `/deop <you>` the menu locks itself immediately, without reopening it. When you get `/op` again:
+The check is live. If an admin runs `/deop <you>` the menu locks itself immediately. When you get `/op` again:
 
 - your toggles and sliders come back exactly as you had them (they are kept in memory)
 - your saved config file is **never overwritten** by losing OP
@@ -143,10 +143,12 @@ You need **JDK** and the project's Gradle wrapper. Gradle downloads everything e
 | Fabric 26.2 | **25** | [Fabric example mod](https://github.com/FabricMC/fabric-example-mod) (for the Gradle wrapper), Fabric Loom 1.17 |
 
 ```bash
-# Fedora example
+# Fedora Linux example
 sudo dnf install adoptium-temurin-java-repository
 sudo dnf install temurin-21-jdk    # NeoForge 1.21.1
 sudo dnf install temurin-25-jdk    # Fabric 26.2 (or install Temurin 25)
+
+sudo alternatives --config java    # Change Java versions
 
 ./gradlew build
 # jar ends up in build/libs/
