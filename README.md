@@ -52,7 +52,7 @@ It is a **client-side** mod. You only install it on your own PC. Nothing needs t
 | **Self** | God Mode, Auto Heal, Infinite Hunger, No Fall Damage, Flight (+ speed), Walk Speed, High Jump, Step Assist, Low Gravity, Infinite Jump, Auto Sprint, Extended Reach, 11 more potion effects with level sliders |
 | **XP / Level** | Set any level, **freeze** it (checked every tick, a command is only sent when the level really changes, so no lag) |
 | **Combat** | Kill Aura, **Always Crit** (works on the ground, no jumping), **No Attack Delay** (spam full-damage hits), Anti-Knockback |
-| **Render** | Fullbright, Entity ESP (glow), **Xray** with per-ore toggles, **Freecam** |
+| **Render** | Fullbright, Entity ESP (glow), **Xray** with per-ore toggles |
 | **World** | Time (skips *forward*, so the day counter never resets), weather, difficulty, game rules, teleports, utility commands |
 | **Items** | **Item spawner** with search + big icon preview on hover, enchantment editor, count, *Infinite Durability*, over-max enchant levels; **God Armor** and **God Tools** in one click |
 | **Players** | Online player list with admin actions: teleport, bring, heal, gamemode, gift God gear, launch, freeze, blind, lightning, kick and more |
@@ -165,12 +165,13 @@ The mod does everything through normal vanilla commands, so **no server mod is r
 
 - Players need to be **OP (permission level 2+)**. `/deop` instantly cuts their menu.
 - **Flight** needs `allow-flight=true` in `server.properties`, otherwise vanilla kicks hovering players.
-- Some features change server-side *attributes* (Extended Reach, Step Assist, Low Gravity, Anti-Knockback, No Attack Delay, No Fall). They are reset when the player turns the feature off. If you `/deop` someone while these are on, clean up with, for example:
+- Some features change server-side *attributes* (Extended Reach, Step Assist, Low Gravity, Anti-Knockback, No Attack Delay, No Fall). They are put back to normal when the player turns the feature off.
+  **After you `/deop` someone**, open the **Players** tab, select them and press **Reset Attributes + Effects** (or **Reset All** for everyone). It resets every attribute the menu can touch and clears their effects in one click.
+  If you already `/deop`ed them, `/op` them again, reset, then `/deop`. Manual fallback:
   ```
   /attribute <player> minecraft:generic.step_height base set 0.6        (1.21.1)
   /attribute <player> minecraft:step_height base set 0.6                (26.2)
   ```
-  The player can also press **Settings → Reset Server Attributes + Effects** once they are OP again.
 - Potion-style features (God Mode, Speed, ...) are given as 30-second effects and refreshed by the client, so they fade out by themselves after a `/deop`.
 
 ---
