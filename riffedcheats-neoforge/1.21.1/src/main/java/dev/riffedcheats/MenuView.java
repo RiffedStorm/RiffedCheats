@@ -149,12 +149,20 @@ public final class MenuView {
         if (Ui.in(mx, my, SX, SY, SW, 20)) return true;
         if (!Access.allowed) return false;
         for (int i = 0; i < Menu.CATEGORIES.size(); i++)
-            if (Ui.in(mx, my, SX + 3, SY + 30 + i * 18, SW - 6, 16)) { cat = i; tab = 0; scroll = 0; return false; }
+            if (Ui.in(mx, my, SX + 3, SY + 30 + i * 18, SW - 6, 16)) {
+                if (i == cat && cur().page() != null) cur().page().reselect();
+                cat = i; tab = 0; scroll = 0;
+                return false;
+            }
         Menu.Category c = Menu.CATEGORIES.get(cat);
         int tx = CX + 6;
         for (int j = 0; j < c.tabs().size(); j++) {
             int w = Gfx.textWidth(c.tabs().get(j).name()) + 16;
-            if (Ui.in(mx, my, tx, CY + 6, w, 20)) { tab = j; scroll = 0; return false; }
+            if (Ui.in(mx, my, tx, CY + 6, w, 20)) {
+                if (j == tab && cur().page() != null) cur().page().reselect();
+                tab = j; scroll = 0;
+                return false;
+            }
             tx += w + 4;
         }
         Menu.Tab t = cur();

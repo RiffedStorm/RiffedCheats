@@ -10,4 +10,6 @@ public interface Page {
     default boolean key(int key, int scan, int mods) { return false; }
     default boolean typed(char c) { return false; }
     default boolean wantsText() { return false; }
+    /** The tab (or its category) was clicked while already open: go back to the page's start view. */
+    default void reselect() {}
 }

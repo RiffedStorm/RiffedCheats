@@ -46,6 +46,7 @@ public final class PlayersPage implements Page {
     private List<String> names() { return Compat.onlinePlayers(); }
 
     @Override public boolean wantsText() { return inv != null; }
+    @Override public void reselect() { inv = null; }
 
     @Override
     public void render(Gfx g, int mx, int my, int x, int y, int w, int h) {
