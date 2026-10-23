@@ -87,6 +87,14 @@ public final class MenuView {
 
     private void drawRow(Gfx g, Setting s, int ry, int mx, int my) {
         if (s.kind == Setting.Kind.LABEL) { g.text(Ui.fit(g, s.name, BW - 8), BX + 4, ry + 6, Ui.DIM); return; }
+        if (s.kind == Setting.Kind.BUTTONS) {
+            if (!s.name.isEmpty()) g.text(Ui.fit(g, s.name, LBL - 12), BX + 8, ry + 6, Ui.TEXT);
+            for (int i = 0; i < s.opts.length; i++) {
+                int bx = optX(s, i), bw = optW(s);
+                Ui.button(g, s.opts[i], bx, ry, bw, ROW, Ui.in(mx, my, bx, ry, bw, ROW), false);
+            }
+            return;
+        }
         boolean hov = Ui.in(mx, my, BX, ry, BW, ROW);
         Ui.rr(g, BX, ry, BW, ROW, hov ? Ui.HOVER : Ui.BTN);
         switch (s.kind) {
@@ -109,6 +117,11 @@ public final class MenuView {
             default -> {}
         }
     }
+
+    /** Button rows: the left LBL units hold the label (rows without a label still align with the ones that have one). */
+    private static final int LBL = 104;
+    private static int optW(Setting s) { return (BW - LBL - (s.opts.length - 1) * 4) / s.opts.length; }
+    private static int optX(Setting s, int i) { return BX + LBL + i * (optW(s) + 4); }
 
     private int trackX() { return BX + BW - 150; }
     private int trackW() { return 140; }
@@ -145,6 +158,10 @@ public final class MenuView {
             switch (s.kind) {
                 case TOGGLE -> { s.on = !s.on; Menu.changed(); }
                 case BUTTON -> s.action.run();
+                case BUTTONS -> {
+                    for (int k = 0; k < s.opts.length; k++)
+                        if (Ui.in(mx, my, optX(s, k), ry, optW(s), ROW)) { s.acts[k].run(); break; }
+                }
                 case SLIDER -> { dragging = s; setSlider(s, mx); }
                 default -> {}
             }

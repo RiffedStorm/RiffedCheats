@@ -65,6 +65,7 @@ public final class Features {
         ticks++;
         if (p != lastPlayer) { onNewPlayer(); lastPlayer = p; }
 
+        Teleports.tick(p);
         client(p, level, mc);
         if (Access.allowed) { Cmd.tick(); server(p); } else Cmd.clear();
 
@@ -333,6 +334,13 @@ public final class Features {
         long d = Math.floorMod(target - cur, 24000L);
         if (d == 0) return;
         Cmd.run("time add " + d);
+    }
+
+    /** Same as /spawnpoint for yourself, at the block you are standing in (works in any dimension). */
+    public static void setSpawnHere() {
+        LocalPlayer p = Minecraft.getInstance().player;
+        if (p == null) return;
+        Cmd.run("spawnpoint @s " + (int) Math.floor(p.getX()) + " " + (int) Math.floor(p.getY()) + " " + (int) Math.floor(p.getZ()));
     }
 
     public static void tpSpawn() {

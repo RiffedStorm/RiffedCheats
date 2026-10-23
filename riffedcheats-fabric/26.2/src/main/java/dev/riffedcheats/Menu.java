@@ -24,6 +24,22 @@ public final class Menu {
     private static Setting b(String n, Runnable r) { return Setting.button(n, r); }
     private static Setting cmd(String label, String... c) { return b(label, () -> Cmd.run(c)); }
     private static Setting lab(String n) { return Setting.label(n); }
+    /** Row of buttons. p = name, action, name, action... where an action is a Runnable or a command string. */
+    private static Setting row(String label, Object... p) {
+        String[] names = new String[p.length / 2];
+        Runnable[] acts = new Runnable[p.length / 2];
+        for (int i = 0; i < names.length; i++) {
+            names[i] = (String) p[i * 2];
+            Object a = p[i * 2 + 1];
+            acts[i] = a instanceof Runnable r ? r : () -> Cmd.run((String) a);
+        }
+        return Setting.buttons(label, names, acts);
+    }
+    private static Runnable act(Runnable r) { return r; }
+    private static Setting onOff(String label, String rule) {
+        String g = "gamerule " + Compat.gamerule(rule);
+        return row(label, "ON", g + " true", "OFF", g + " false");
+    }
     private static Tab tab(String n, Setting... s) {
         List<Setting> out = new ArrayList<>();
         for (Setting x : s) {
@@ -119,8 +135,14 @@ public final class Menu {
 
     static {
         cat("Self",
-            tab("Main", GOD, HEAL, HUNGER, NOFALL, lab("God = Resistance V. Everything here uses effects/attributes,"),
-                lab("so it works on servers too (you must be OP).")),
+            tab("Main", GOD, HEAL, HUNGER, NOFALL,
+                row("Gamemode", "Survival", "gamemode survival @s", "Creative", "gamemode creative @s",
+                    "Adventure", "gamemode adventure @s", "Spectator", "gamemode spectator @s"),
+                b("Set My Spawnpoint Here", Features::setSpawnHere),
+                row("Quick", "Heal + Feed", act(() -> Cmd.run("effect give @s minecraft:instant_health 1 10 true", "effect give @s minecraft:saturation 1 10 true")),
+                    "Clear My Effects", "effect clear @s"),
+                cmd("Clear My Inventory", "clear @s"),
+                lab("God = Resistance V. Everything here uses effects/attributes, so it works on servers too (you must be OP).")),
             tab("Movement", FLIGHT, FLY_SPEED, SPEED, effLvl(SPEED), JUMP, effLvl(JUMP), STEP, STEP_H, LOWGRAV, GRAV_MULT, INFJUMP, AUTOSPRINT,
                 lab("Flight on a dedicated server needs allow-flight=true.")),
             tab("Reach", REACH, BLOCK_REACH, ENTITY_REACH,
@@ -147,32 +169,28 @@ public final class Menu {
 
         cat("World",
             tab("Time",
-                b("Skip to Day", () -> Features.setTime(1000)),
-                b("Skip to Noon", () -> Features.setTime(6000)), b("Skip to Sunset", () -> Features.setTime(12000)),
-                b("Skip to Night", () -> Features.setTime(13000)), b("Skip to Midnight", () -> Features.setTime(18000)),
-                b("Skip to Sunrise", () -> Features.setTime(23000)),
+                row("Skip to", "Day", act(() -> Features.setTime(1000)), "Noon", act(() -> Features.setTime(6000)),
+                    "Sunset", act(() -> Features.setTime(12000))),
+                row("", "Night", act(() -> Features.setTime(13000)), "Midnight", act(() -> Features.setTime(18000)),
+                    "Sunrise", act(() -> Features.setTime(23000))),
                 TIME_CUSTOM, b("Skip to Custom Time", () -> Features.setTime(TIME_CUSTOM.intValue())),
                 cmd("Skip Forward 1 Day", "time add 24000"),
                 lab("Time only moves forward, so the day counter never resets.")),
-            tab("Weather", cmd("Clear Weather", "weather clear"), cmd("Rain", "weather rain"), cmd("Thunder", "weather thunder"),
-                cmd("Peaceful", "difficulty peaceful"), cmd("Easy", "difficulty easy"), cmd("Normal", "difficulty normal"), cmd("Hard", "difficulty hard")),
+            tab("Weather",
+                row("Weather", "Clear", "weather clear", "Rain", "weather rain", "Thunder", "weather thunder"),
+                row("Difficulty", "Peaceful", "difficulty peaceful", "Easy", "difficulty easy", "Normal", "difficulty normal", "Hard", "difficulty hard")),
             tab("Game Rules",
-                cmd("Keep Inventory: ON", "gamerule " + Compat.gamerule("keep_inventory") + " true"), cmd("Keep Inventory: OFF", "gamerule " + Compat.gamerule("keep_inventory") + " false"),
-                cmd("Mob Griefing: ON", "gamerule " + Compat.gamerule("mob_griefing") + " true"), cmd("Mob Griefing: OFF", "gamerule " + Compat.gamerule("mob_griefing") + " false"),
-                cmd("Daylight Cycle: ON", "gamerule " + Compat.gamerule("daylight") + " true"), cmd("Daylight Cycle: OFF", "gamerule " + Compat.gamerule("daylight") + " false"),
-                cmd("Weather Cycle: ON", "gamerule " + Compat.gamerule("weather") + " true"), cmd("Weather Cycle: OFF", "gamerule " + Compat.gamerule("weather") + " false"),
-                cmd("Mob Spawning: ON", "gamerule " + Compat.gamerule("mobspawn") + " true"), cmd("Mob Spawning: OFF", "gamerule " + Compat.gamerule("mobspawn") + " false")),
-            tab("Teleport",
+                onOff("Keep Inventory", "keep_inventory"), onOff("Mob Griefing", "mob_griefing"),
+                onOff("Daylight Cycle", "daylight"), onOff("Weather Cycle", "weather"), onOff("Mob Spawning", "mobspawn")));
+
+        cat("Teleport",
+            page("Locations", new TeleportPage()),
+            tab("Quick",
                 b("To World Spawn", Features::tpSpawn),
-                cmd("Up 10 Blocks", "tp @s ~ ~10 ~"), cmd("Up 50 Blocks", "tp @s ~ ~50 ~"), cmd("Down 10 Blocks", "tp @s ~ ~-10 ~"),
-                cmd("Sky (Y 300)", "execute as @s at @s run tp @s ~ 300 ~"), cmd("Set My Spawn Here", "spawnpoint @s ~ ~ ~")),
-            tab("Utility",
-                cmd("Gamemode: Survival", "gamemode survival @s"), cmd("Gamemode: Creative", "gamemode creative @s"),
-                cmd("Gamemode: Adventure", "gamemode adventure @s"), cmd("Gamemode: Spectator", "gamemode spectator @s"),
-                cmd("Heal + Feed", "effect give @s minecraft:instant_health 1 10 true", "effect give @s minecraft:saturation 1 10 true"),
-                cmd("Clear My Effects", "effect clear @s"), cmd("Clear My Inventory", "clear @s"),
-                cmd("Kill Mobs Within 64m (not items/players)", "kill @e[type=!minecraft:player,type=!minecraft:item,distance=..64]"),
-                cmd("Remove Dropped Items Within 64m", "kill @e[type=minecraft:item,distance=..64]")));
+                b("To Last Death", Teleports::tpLastDeath),
+                row("Move", "Up 10", "tp @s ~ ~10 ~", "Up 50", "tp @s ~ ~50 ~", "Down 10", "tp @s ~ ~-10 ~", "Sky (Y 300)", "tp @s ~ 300 ~"),
+                b("Set My Spawnpoint Here", Features::setSpawnHere),
+                lab("Saved locations are kept per world / server and per dimension, and work across dimensions.")));
 
         cat("Items",
             page("Spawner", new ItemsPage()),
@@ -189,6 +207,13 @@ public final class Menu {
                 cmd("Netherite Ingots x64", "give @s minecraft:netherite_ingot 64"), cmd("Ender Pearls x16", "give @s minecraft:ender_pearl 16"),
                 cmd("XP Bottles x64", "give @s minecraft:experience_bottle 64"), cmd("TNT x64", "give @s minecraft:tnt 64"),
                 cmd("Shulker Box", "give @s minecraft:shulker_box"), cmd("Command Block", "give @s minecraft:command_block")));
+
+        cat("Mobs",
+            page("Summon", new MobsPage()),
+            tab("Cleanup",
+                cmd("Kill Mobs Within 64m (not players/items)", "kill @e[type=!minecraft:player,type=!minecraft:item,distance=..64]"),
+                cmd("Remove Dropped Items Within 64m", "kill @e[type=minecraft:item,distance=..64]"),
+                cmd("Remove XP Orbs Within 64m", "kill @e[type=minecraft:experience_orb,distance=..64]")));
 
         cat("Players", page("Player List", new PlayersPage()));
         cat("Console", page("Command Executor", new ConsolePage()));

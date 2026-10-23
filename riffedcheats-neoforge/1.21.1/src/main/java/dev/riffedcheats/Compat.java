@@ -4,17 +4,21 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
@@ -29,6 +33,7 @@ import net.minecraft.world.entity.player.Abilities;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.fml.loading.FMLPaths;
 
 /** Everything that is specific to Minecraft 1.21.1 / NeoForge lives here. */
@@ -186,6 +191,34 @@ public final class Compat {
         var b = mc().level.getSharedSpawnPos();
         return new int[] { b.getX(), b.getY(), b.getZ() };
     }
+
+    // ---------------- teleports ----------------
+    /** Key for saved teleports: the save folder name in singleplayer / LAN host, the address on a server. */
+    public static String worldId() {
+        IntegratedServer s = mc().getSingleplayerServer();
+        if (s != null) {
+            try { return "sp:" + s.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().getFileName(); }
+            catch (Throwable t) { return "sp:" + s.getWorldData().getLevelName(); }
+        }
+        ServerData d = mc().getCurrentServer();
+        return d != null ? "mp:" + d.ip.toLowerCase(java.util.Locale.ROOT) : "unknown";
+    }
+
+    public static String dimension() { return mc().level == null ? "minecraft:overworld" : mc().level.dimension().location().toString(); }
+
+    /** The death position vanilla keeps for the recovery compass (sent to the client on join / respawn). */
+    public static Teleports.Loc lastDeath() {
+        LocalPlayer p = mc().player;
+        if (p == null) return null;
+        Optional<GlobalPos> o = p.getLastDeathLocation();
+        if (o.isEmpty()) return null;
+        BlockPos b = o.get().pos();
+        return new Teleports.Loc(worldId(), o.get().dimension().location().toString(), "Last Death",
+                b.getX() + 0.5, b.getY(), b.getZ() + 0.5, p.getYRot(), p.getXRot());
+    }
+
+    /** 1.21.1: CustomName is a JSON text component inside an NBT string. */
+    public static String customName(String n) { return "CustomName:'\"" + n + "\"'"; }
 
     public static List<String> onlinePlayers() {
         List<String> l = new ArrayList<>();

@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import net.fabricmc.loader.api.FabricLoader;
@@ -12,10 +13,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.protocol.Packet;
@@ -30,6 +34,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.level.storage.LevelResource;
 
 /**
  * Everything specific to Minecraft 26.2 / Fabric lives here. If the build complains after a Minecraft update,
@@ -270,6 +275,31 @@ public final class Compat {
             return new int[] { (int) Refl.call(b, "getX"), (int) Refl.call(b, "getY"), (int) Refl.call(b, "getZ") };
         } catch (Throwable t) { return new int[] { 0, 100, 0 }; }
     }
+
+    // ---------------- teleports ----------------
+    /** Key for saved teleports: the save folder name in singleplayer / LAN host, the address on a server. */
+    public static String worldId() {
+        IntegratedServer s = mc().getSingleplayerServer();
+        if (s != null) return "sp:" + s.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().getFileName();
+        ServerData d = mc().getCurrentServer();
+        return d != null ? "mp:" + d.ip.toLowerCase(java.util.Locale.ROOT) : "unknown";
+    }
+
+    public static String dimension() { return mc().level == null ? "minecraft:overworld" : mc().level.dimension().identifier().toString(); }
+
+    /** The death position vanilla keeps for the recovery compass (sent to the client on join / respawn). */
+    public static Teleports.Loc lastDeath() {
+        LocalPlayer p = mc().player;
+        if (p == null) return null;
+        Optional<GlobalPos> o = p.getLastDeathLocation();
+        if (o.isEmpty()) return null;
+        BlockPos b = o.get().pos();
+        return new Teleports.Loc(worldId(), o.get().dimension().identifier().toString(), "Last Death",
+                b.getX() + 0.5, b.getY(), b.getZ() + 0.5, p.getYRot(), p.getXRot());
+    }
+
+    /** 1.21.5+: CustomName is an SNBT text component, a plain string is literal text. */
+    public static String customName(String n) { return "CustomName:\"" + n + "\""; }
 
     public static List<String> onlinePlayers() {
         List<String> l = new ArrayList<>();

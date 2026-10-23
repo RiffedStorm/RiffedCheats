@@ -49,12 +49,14 @@ It is a **client-side** mod. You only install it on your own PC. Nothing needs t
 
 | Category | What you get |
 |---|---|
-| **Self** | God Mode, Auto Heal, Infinite Hunger, No Fall Damage, Flight (+ speed), Walk Speed, High Jump, Step Assist, Low Gravity, Infinite Jump, Auto Sprint, Extended Reach, 11 more potion effects with level sliders |
+| **Self** | God Mode, Auto Heal, Infinite Hunger, No Fall Damage, gamemode, set your spawnpoint where you stand, heal / clear effects / clear inventory, Flight (+ speed), Walk Speed, High Jump, Step Assist, Low Gravity, Infinite Jump, Auto Sprint, Extended Reach, 11 more potion effects with level sliders |
 | **XP / Level** | Set any level, **freeze** it (checked every tick, a command is only sent when the level really changes, so no lag) |
 | **Combat** | Kill Aura, **Always Crit** (works on the ground, no jumping), **No Attack Delay** (spam full-damage hits), Anti-Knockback |
 | **Render** | Fullbright, Entity ESP (glow), **Xray** with per-ore toggles |
-| **World** | Time (skips *forward*, so the day counter never resets), weather, difficulty, game rules, teleports, utility commands |
+| **World** | Time (skips *forward*, so the day counter never resets), weather, difficulty, game rules |
+| **Teleport** | **Saved locations** with names, per world / server and per dimension (teleports work across dimensions), **teleport to your last death**, world spawn, quick up / down / sky |
 | **Items** | **Item spawner** with search + big icon preview on hover, enchantment editor, count, *Infinite Durability*, over-max enchant levels; **God Armor** and **God Tools** in one click |
+| **Mobs** | **Mob summoner** with search, Hostile / Passive / Other filter, spawn-egg icon preview, count, No AI / Baby / Glowing / Invincible / No Despawn / Silent, custom name; cleanup buttons |
 | **Players** | Online player list with admin actions: teleport, bring, heal, gamemode, gift God gear, launch, freeze, blind, lightning, kick and more |
 | **Console** | Command executor with live suggestions and history, **no "allow cheats" needed in your own world** |
 | **Settings** | Autosave (on by default), manual save, disable everything, reset server-side values |
