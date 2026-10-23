@@ -30,5 +30,5 @@ dependencies {
 tasks.withType(ProcessResources).configureEach {
     var props = [mod_id: mod_id, mod_version: mod_version]
     inputs.properties props
-    filesMatching(['META-INF/neoforge.mods.toml']) { expand props }
+    filesMatching(['META-INF/neoforge.mods.toml', 'riffedcheats-core.properties']) { expand props }
 }

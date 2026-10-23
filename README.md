@@ -59,7 +59,7 @@ It is a **client-side** mod. You only install it on your own PC. Nothing needs t
 | **Mobs** | **Mob summoner** with search, Hostile / Passive / Other filter, spawn-egg icon preview, count, No AI / Baby / Glowing / Invincible / No Despawn / Silent, custom name; cleanup buttons |
 | **Players** | Online player list with admin actions: teleport, bring, heal, gamemode, gift God gear, **edit their inventory**, launch, freeze, blind, lightning, kick and more |
 | **Console** | Command executor with live suggestions and history, **click coordinates** (e.g. from /locate) to teleport, clear log / history, **no "allow cheats" needed in your own world** |
-| **Settings** | Autosave (on by default), manual save, disable everything, reset server-side values |
+| **Settings** | Autosave (on by default), manual save, disable everything, reset server-side values, reset all sliders; **in-game updater**: checks GitHub releases and updates with one click, reloading the menu **without restarting or leaving your world** |
 
 <!-- SCREENSHOT 2 -->
 ![Item spawner with icon preview](docs/screenshots/item-spawner.png)
