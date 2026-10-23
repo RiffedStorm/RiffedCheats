@@ -95,6 +95,13 @@ public final class MenuView {
             }
             return;
         }
+        if (s.kind == Setting.Kind.RULE) {
+            g.text(Ui.fit(g, s.name, BW - 110), BX + 8, ry + 6, Ui.TEXT);
+            Boolean v = Rules.get(s.opts[0]);
+            int bx = BX + BW - 90;
+            Ui.stateButton(g, v == null ? "..." : v ? "ON" : "OFF", bx, ry, 90, ROW, Ui.in(mx, my, bx, ry, 90, ROW), v);
+            return;
+        }
         boolean hov = Ui.in(mx, my, BX, ry, BW, ROW);
         Ui.rr(g, BX, ry, BW, ROW, hov ? Ui.HOVER : Ui.BTN);
         switch (s.kind) {
@@ -104,14 +111,15 @@ public final class MenuView {
                 Ui.pill(g, BX + BW - 36, ry + 4, s.on);
             }
             case SLIDER -> {
-                g.text(Ui.fit(g, s.name, BW - 200), BX + 8, ry + 6, Ui.TEXT);
+                g.text(Ui.fit(g, s.name, BW - 236), BX + 8, ry + 6, Ui.TEXT);
+                if (s.value != s.def) Ui.button(g, "\u21BA", resetX(), ry + 3, 14, 14, Ui.in(mx, my, resetX(), ry + 3, 14, 14), false);
                 int tx = trackX(), tw = trackW();
                 float frac = (s.value - s.min) / (s.max - s.min);
                 int fw = (int) (tw * frac);
                 Ui.rr(g, tx, ry + 8, tw, 4, Ui.DARK);
                 if (fw > 0) Ui.rr(g, tx, ry + 8, fw, 4, Ui.ACCENT);
                 Ui.rr(g, tx + fw - 2, ry + 5, 4, 10, Ui.TEXT);
-                String v = String.format("%.2f", s.value).replaceAll("0+$", "").replaceAll("\\.$", "");
+                String v = String.format(java.util.Locale.ROOT, "%.2f", s.value).replaceAll("0+$", "").replaceAll("\\.$", "");
                 g.text(v, tx - 8 - g.width(v), ry + 6, Ui.DIM);
             }
             default -> {}
@@ -124,6 +132,8 @@ public final class MenuView {
     private static int optX(Setting s, int i) { return BX + LBL + i * (optW(s) + 4); }
 
     private int trackX() { return BX + BW - 150; }
+    /** Reset-to-default button of a slider row, left of the value text. */
+    private int resetX() { return BX + BW - 214; }
     private int trackW() { return 140; }
 
     private void setSlider(Setting s, int mx) {
@@ -162,7 +172,11 @@ public final class MenuView {
                     for (int k = 0; k < s.opts.length; k++)
                         if (Ui.in(mx, my, optX(s, k), ry, optW(s), ROW)) { s.acts[k].run(); break; }
                 }
-                case SLIDER -> { dragging = s; setSlider(s, mx); }
+                case SLIDER -> {
+                    if (s.value != s.def && Ui.in(mx, my, resetX(), ry + 3, 14, 14)) { s.value = s.def; Menu.changed(); }
+                    else if (mx >= trackX() - 4) { dragging = s; setSlider(s, mx); }
+                }
+                case RULE -> { if (mx >= BX + BW - 90) Rules.flip(s.opts[0]); }
                 default -> {}
             }
             return false;

@@ -34,6 +34,13 @@ public final class Ui {
         center(g, fit(g, label, w - 6), x, y + (h - 8) / 2, w, TEXT);
     }
 
+    /** Button colored by state: green = on, red = off, normal = unknown. */
+    public static void stateButton(Gfx g, String label, int x, int y, int w, int h, boolean hover, Boolean on) {
+        int c = on == null ? (hover ? HOVER : BTN) : on ? (hover ? 0xFF3A9A63 : 0xFF2E7D4F) : (hover ? 0xFFA03A48 : 0xFF86303C);
+        rr(g, x, y, w, h, c);
+        center(g, fit(g, label, w - 6), x, y + (h - 8) / 2, w, TEXT);
+    }
+
     public static void pill(Gfx g, int x, int y, boolean on) {
         rr(g, x, y, 28, 12, on ? GREEN : DARK);
         rr(g, on ? x + 16 : x + 2, y + 2, 10, 8, TEXT);

@@ -3,7 +3,9 @@ package dev.riffedcheats;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -16,7 +18,14 @@ import net.minecraft.client.player.Input;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.TagParser;
+import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Registry;
@@ -33,7 +42,9 @@ import net.minecraft.world.entity.player.Abilities;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.storage.LevelResource;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLPaths;
 
 /** Everything that is specific to Minecraft 1.21.1 / NeoForge lives here. */
@@ -57,6 +68,54 @@ public final class Compat {
             ServerPlayer sp = srv.getPlayerList().getPlayer(id);
             if (sp != null) srv.getCommands().performPrefixedCommand(elevated(sp), cmd);
         });
+    }
+
+    /** Runs a command in your own world and hands every line of its output to {@code out} (server thread), instead of the chat. */
+    public static void runCapture(String cmd, Consumer<Component> out) {
+        LocalPlayer p = mc().player;
+        IntegratedServer srv = mc().getSingleplayerServer();
+        if (p == null || srv == null) return;
+        UUID id = p.getUUID();
+        CommandSource sink = new CommandSource() {
+            @Override public void sendSystemMessage(Component c) { out.accept(c); }
+            @Override public boolean acceptsSuccess() { return true; }
+            @Override public boolean acceptsFailure() { return true; }
+            @Override public boolean shouldInformAdmins() { return false; }
+        };
+        srv.execute(() -> {
+            ServerPlayer sp = srv.getPlayerList().getPlayer(id);
+            if (sp != null) srv.getCommands().performPrefixedCommand(elevated(sp).withSource(sink), cmd);
+        });
+    }
+
+    public static boolean modLoaded(String id) { return ModList.get() != null && ModList.get().isLoaded(id); }
+
+    public static String selfName() { return mc().player == null ? "" : mc().player.getGameProfile().getName(); }
+
+    // ---------------- other players' inventories ----------------
+    /** 1.21.1 keeps armor (Slot 100-103) and offhand (Slot -106) inside the Inventory list. */
+    public static String[] inventoryQueries(String name) { return new String[] { "data get entity " + name + " Inventory" }; }
+
+    public static void parseInventory(String snbt, Map<Integer, ItemStack> into) throws Exception {
+        if (!snbt.startsWith("[")) return;
+        ListTag list = TagParser.parseTag("{L:" + snbt + "}").getList("L", Tag.TAG_COMPOUND);
+        into.clear();
+        var reg = mc().level.registryAccess();
+        for (int i = 0; i < list.size(); i++) {
+            CompoundTag t = list.getCompound(i);
+            int slot = t.getByte("Slot");
+            if (slot == -106) slot = 106;
+            int s = slot;
+            ItemStack.parse(reg, t).ifPresent(st -> into.put(s, st));
+        }
+    }
+
+    /** Enchantments on a stack (stored ones for enchanted books): id -> level. */
+    public static Map<String, Integer> enchantsOf(ItemStack st) {
+        ItemEnchantments e = st.get(st.is(Items.ENCHANTED_BOOK) ? DataComponents.STORED_ENCHANTMENTS : DataComponents.ENCHANTMENTS);
+        Map<String, Integer> out = new LinkedHashMap<>();
+        if (e != null) for (var en : e.entrySet()) en.getKey().unwrapKey().ifPresent(k -> out.put(k.location().toString(), en.getIntValue()));
+        return out;
     }
 
     public static void runRemote(String cmd) {
@@ -97,6 +156,17 @@ public final class Compat {
             case "daylight" -> "doDaylightCycle";
             case "weather" -> "doWeatherCycle";
             case "mobspawn" -> "doMobSpawning";
+            case "phantoms" -> "doInsomnia";
+            case "patrols" -> "doPatrolSpawning";
+            case "traders" -> "doTraderSpawning";
+            case "immediate_respawn" -> "doImmediateRespawn";
+            case "regen" -> "naturalRegeneration";
+            case "fall_damage" -> "fallDamage";
+            case "fire_damage" -> "fireDamage";
+            case "mob_drops" -> "doMobLoot";
+            case "block_drops" -> "doTileDrops";
+            case "death_messages" -> "showDeathMessages";
+            case "feedback" -> "sendCommandFeedback";
             default -> key;
         };
     }

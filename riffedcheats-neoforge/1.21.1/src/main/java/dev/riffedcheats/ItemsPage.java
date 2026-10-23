@@ -13,7 +13,8 @@ import net.minecraft.world.item.Items;
 
 /** Item spawner: search, icon previews on hover (Menyoo style), enchant editor, count, infinite durability. */
 public final class ItemsPage implements Page {
-    private record Entry(ItemStack stack, String name, String id, String lower) {}
+    record Entry(ItemStack stack, String name, String id, String lower) {}
+    private static List<Entry> ALL;
 
     private static final int LW = 172, ROWH = 18;
 
@@ -31,8 +32,11 @@ public final class ItemsPage implements Page {
 
     @Override public boolean wantsText() { return true; }
 
-    private void init() {
-        if (all != null) return;
+    private void init() { if (all == null) all = items(); }
+
+    /** Every registered item (cached), sorted by name. Also used by the inventory editor. */
+    static List<Entry> items() {
+        if (ALL != null) return ALL;
         List<Entry> l = new ArrayList<>();
         for (Item it : BuiltInRegistries.ITEM) {
             if (it == Items.AIR) continue;
@@ -42,7 +46,7 @@ public final class ItemsPage implements Page {
             l.add(new Entry(st, name, id, (name + " " + id).toLowerCase(Locale.ROOT)));
         }
         l.sort(Comparator.comparing(e -> e.name().toLowerCase(Locale.ROOT)));
-        all = l;
+        return ALL = l;
     }
 
     private void filter() {

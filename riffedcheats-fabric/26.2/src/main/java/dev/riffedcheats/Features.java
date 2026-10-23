@@ -79,6 +79,8 @@ public final class Features {
         effSent.clear(); effLast.clear(); effAmpSent.clear();
         for (Attr a : ATTRS) a.sent = Double.NaN;
         Cmd.clear();
+        Rules.clear();
+        Inventories.clear();
     }
 
     // ---------------- client-side features ----------------

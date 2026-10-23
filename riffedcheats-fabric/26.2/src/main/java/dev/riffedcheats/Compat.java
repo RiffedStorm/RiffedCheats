@@ -4,7 +4,9 @@ import java.lang.reflect.Constructor;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -17,7 +19,16 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.TagParser;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.GlobalPos;
 import net.minecraft.core.Registry;
@@ -34,6 +45,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
 import net.minecraft.world.level.storage.LevelResource;
 
 /**
@@ -84,6 +96,64 @@ public final class Compat {
         });
     }
 
+    /** Runs a command in your own world and hands every line of its output to {@code out} (server thread), instead of the chat. */
+    public static void runCapture(String cmd, Consumer<Component> out) {
+        LocalPlayer p = mc().player;
+        IntegratedServer srv = mc().getSingleplayerServer();
+        if (p == null || srv == null) return;
+        UUID id = p.getUUID();
+        CommandSource sink = new CommandSource() {
+            @Override public void sendSystemMessage(Component c) { out.accept(c); }
+            @Override public boolean acceptsSuccess() { return true; }
+            @Override public boolean acceptsFailure() { return true; }
+            @Override public boolean shouldInformAdmins() { return false; }
+        };
+        srv.execute(() -> {
+            ServerPlayer sp = srv.getPlayerList().getPlayer(id);
+            if (sp != null) srv.getCommands().performPrefixedCommand(elevated(sp).withSource(sink), cmd);
+        });
+    }
+
+    public static boolean modLoaded(String id) { return FabricLoader.getInstance().isModLoaded(id); }
+
+    public static String selfName() { return mc().player == null ? "" : mc().player.getName().getString(); }
+
+    // ---------------- other players' inventories ----------------
+    /** 1.21.5+ keeps armor and offhand in a separate "equipment" compound. */
+    public static String[] inventoryQueries(String name) {
+        return new String[] { "data get entity " + name + " Inventory", "data get entity " + name + " equipment" };
+    }
+
+    public static void parseInventory(String snbt, Map<Integer, ItemStack> into) throws Exception {
+        RegistryOps<Tag> ops = mc().level.registryAccess().createSerializationContext(NbtOps.INSTANCE);
+        if (snbt.startsWith("[")) {
+            ListTag list = TagParser.parseCompoundFully("{L:" + snbt + "}").getList("L").orElseThrow();
+            into.keySet().removeIf(k -> k < 100);
+            for (int i = 0; i < list.size(); i++) {
+                CompoundTag t = list.getCompoundOrEmpty(i);
+                int slot = t.getByteOr("Slot", (byte) -1);
+                if (slot >= 0 && slot < 36) ItemStack.CODEC.parse(ops, t).result().ifPresent(st -> into.put(slot, st));
+            }
+        } else if (snbt.startsWith("{")) {
+            CompoundTag eq = TagParser.parseCompoundFully(snbt);
+            into.keySet().removeIf(k -> k >= 100);
+            String[] keys = { "feet", "legs", "chest", "head" };
+            for (int i = 0; i < 4; i++) {
+                int slot = 100 + i;
+                eq.getCompound(keys[i]).flatMap(t -> ItemStack.CODEC.parse(ops, t).result()).ifPresent(st -> into.put(slot, st));
+            }
+            eq.getCompound("offhand").flatMap(t -> ItemStack.CODEC.parse(ops, t).result()).ifPresent(st -> into.put(106, st));
+        }
+    }
+
+    /** Enchantments on a stack (stored ones for enchanted books): id -> level. */
+    public static Map<String, Integer> enchantsOf(ItemStack st) {
+        ItemEnchantments e = st.get(st.is(Items.ENCHANTED_BOOK) ? DataComponents.STORED_ENCHANTMENTS : DataComponents.ENCHANTMENTS);
+        Map<String, Integer> out = new LinkedHashMap<>();
+        if (e != null) for (var en : e.entrySet()) en.getKey().unwrapKey().ifPresent(k -> out.put(k.identifier().toString(), en.getIntValue()));
+        return out;
+    }
+
     public static void runRemote(String cmd) {
         LocalPlayer p = mc().player;
         if (p != null) p.connection.sendCommand(cmd);
@@ -120,6 +190,12 @@ public final class Compat {
             case "daylight" -> "advance_time";
             case "weather" -> "advance_weather";
             case "mobspawn" -> "spawn_mobs";
+            case "phantoms" -> "spawn_phantoms";
+            case "patrols" -> "spawn_patrols";
+            case "traders" -> "spawn_wandering_traders";
+            case "regen" -> "natural_health_regeneration";
+            case "death_messages" -> "show_death_messages";
+            case "feedback" -> "send_command_feedback";
             default -> key;
         };
     }

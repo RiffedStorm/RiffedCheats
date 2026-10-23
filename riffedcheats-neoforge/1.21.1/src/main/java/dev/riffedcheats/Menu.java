@@ -36,10 +36,7 @@ public final class Menu {
         return Setting.buttons(label, names, acts);
     }
     private static Runnable act(Runnable r) { return r; }
-    private static Setting onOff(String label, String rule) {
-        String g = "gamerule " + Compat.gamerule(rule);
-        return row(label, "ON", g + " true", "OFF", g + " false");
-    }
+    private static Setting rule(String label, String key) { return Setting.rule(label, Compat.gamerule(key)); }
     private static Tab tab(String n, Setting... s) {
         List<Setting> out = new ArrayList<>();
         for (Setting x : s) {
@@ -133,6 +130,14 @@ public final class Menu {
     public static final Setting TIME_CUSTOM = s("Custom Time (ticks)", 0, 24000, 100, 6000);
     public static final Setting AUTOSAVE = t("Autosave", true);
 
+    // ---------------- ProtoManly's Weather (only when the mod is installed) ----------------
+    public static final Setting PM_SC_STAGE = s("Supercell Stage", 0, 2, 1, 1), PM_SC_ENERGY = s("Supercell Energy", 1, 99, 1, 50);
+    public static final Setting PM_SQ_STAGE = s("Squall Stage", 0, 3, 1, 1), PM_SQ_ENERGY = s("Squall Energy", 1, 99, 1, 50);
+    public static final Setting PM_TOR_WIND = s("Tornado Windspeed", 0, 400, 5, 120), PM_TOR_WIDTH = s("Tornado Width", 5, 1200, 5, 60);
+    public static final Setting PM_CYC_WIND = s("Hurricane Windspeed", 0, 250, 5, 100), PM_CYC_WIDTH = s("Hurricane Width", 3000, 16000, 100, 6000);
+    public static final Setting PM_FW_WIND = s("Fire Whirl Windspeed", 0, 100, 1, 40), PM_FW_WIDTH = s("Fire Whirl Width", 1, 10, 1, 3);
+    public static final Setting PM_STRIKE = s("Lightning Power", 1, 20, 1, 5);
+
     static {
         cat("Self",
             tab("Main", GOD, HEAL, HUNGER, NOFALL,
@@ -155,7 +160,8 @@ public final class Menu {
                 b("Target Level +1", () -> bump(1)), b("Target Level +10", () -> bump(10)), b("Target Level +100", () -> bump(100)),
                 b("Target Level -1", () -> bump(-1)), b("Target Level -10", () -> bump(-10)), b("Target Level -100", () -> bump(-100)),
                 cmd("Give +1000 Levels", "xp add @s 1000 levels"), cmd("Set Level 0", "xp set @s 0 levels"),
-                lab("Freeze only sends a command when the level actually changes.")));
+                lab("Freeze only sends a command when the level actually changes.")),
+            page("Inventory", new InventoryPage(null, null)));
 
         cat("Combat",
             tab("Aura", AURA, AURA_RANGE, AURA_DELAY, AURA_HOSTILE, AURA_PLAYERS),
@@ -176,12 +182,18 @@ public final class Menu {
                 TIME_CUSTOM, b("Skip to Custom Time", () -> Features.setTime(TIME_CUSTOM.intValue())),
                 cmd("Skip Forward 1 Day", "time add 24000"),
                 lab("Time only moves forward, so the day counter never resets.")),
-            tab("Weather",
+            Compat.modLoaded("pmweather") ? pmWeather() : tab("Weather",
                 row("Weather", "Clear", "weather clear", "Rain", "weather rain", "Thunder", "weather thunder"),
                 row("Difficulty", "Peaceful", "difficulty peaceful", "Easy", "difficulty easy", "Normal", "difficulty normal", "Hard", "difficulty hard")),
             tab("Game Rules",
-                onOff("Keep Inventory", "keep_inventory"), onOff("Mob Griefing", "mob_griefing"),
-                onOff("Daylight Cycle", "daylight"), onOff("Weather Cycle", "weather"), onOff("Mob Spawning", "mobspawn")));
+                rule("Keep Inventory", "keep_inventory"), rule("Mob Griefing", "mob_griefing"),
+                rule("Daylight Cycle", "daylight"), rule("Weather Cycle", "weather"), rule("Mob Spawning", "mobspawn"),
+                rule("Phantoms", "phantoms"), rule("Patrols", "patrols"), rule("Wandering Traders", "traders"),
+                rule("Immediate Respawn", "immediate_respawn"), rule("Natural Regeneration", "regen"),
+                rule("Fall Damage", "fall_damage"), rule("Fire Damage", "fire_damage"),
+                rule("Mob Loot Drops", "mob_drops"), rule("Block Drops", "block_drops"),
+                rule("Death Messages", "death_messages"), rule("Command Feedback", "feedback"),
+                lab("The buttons show the current server value (green = on, red = off). Click to flip.")));
 
         cat("Teleport",
             page("Locations", new TeleportPage()),
@@ -220,10 +232,31 @@ public final class Menu {
 
         cat("Settings",
             tab("Menu", AUTOSAVE, b("Save Config Now", Menu::save),
+                b("Reset All Sliders to Default", Menu::resetSliders),
                 b("Disable All Features", Menu::disableAll),
                 b("Reset Server Attributes + Effects", Features::resetServerState),
                 lab("Autosave is ON by default. Turn it off to keep changes temporary."),
                 lab("Your settings are kept in memory when you lose OP and come back when you regain it.")));
+    }
+
+    private static Tab pmWeather() {
+        return tab("Weather",
+            row("Difficulty", "Peaceful", "difficulty peaceful", "Easy", "difficulty easy", "Normal", "difficulty normal", "Hard", "difficulty hard"),
+            row("Natural Storm", "Supercell", "pmweather spawn supercell natural", "Squall", "pmweather spawn squall natural",
+                "Hurricane", "pmweather spawn cyclone natural"),
+            cmd("Clear All Storms", "pmweather clear all"),
+            PM_SC_STAGE, PM_SC_ENERGY, b("Spawn Supercell", () -> Cmd.run("pmweather spawn supercell " + PM_SC_STAGE.intValue() + " " + PM_SC_ENERGY.intValue())),
+            PM_SQ_STAGE, PM_SQ_ENERGY, b("Spawn Squall", () -> Cmd.run("pmweather spawn squall " + PM_SQ_STAGE.intValue() + " " + PM_SQ_ENERGY.intValue())),
+            PM_TOR_WIND, PM_TOR_WIDTH, b("Spawn Tornado", () -> Cmd.run("pmweather spawn tornado " + PM_TOR_WIND.intValue() + " " + PM_TOR_WIDTH.intValue())),
+            PM_CYC_WIND, PM_CYC_WIDTH, b("Spawn Hurricane", () -> Cmd.run("pmweather spawn cyclone " + PM_CYC_WIND.intValue() + " " + PM_CYC_WIDTH.intValue())),
+            PM_FW_WIND, PM_FW_WIDTH, b("Spawn Fire Whirl", () -> Cmd.run("pmweather spawn firewhirl " + PM_FW_WIND.intValue() + " " + PM_FW_WIDTH.intValue())),
+            PM_STRIKE, b("Lightning Strike On Me", () -> Cmd.run("pmweather effect strike ~ ~ ~ " + PM_STRIKE.intValue())),
+            lab("ProtoManly's Weather detected, so its storms replace the vanilla weather buttons. Storms spawn around you."));
+    }
+
+    public static void resetSliders() {
+        for (Setting st : ALL) if (st.kind == Setting.Kind.SLIDER) st.value = st.def;
+        changed();
     }
 
     private static Setting[] concat(Setting[] a, Setting[] b) {

@@ -37,6 +37,7 @@ public final class Gfx {
     }
     public int width(String s) { return font().width(s); }
     public void item(ItemStack st, int x, int y) { g.item(st, x, y); }
+    public void decorations(ItemStack st, int x, int y) { g.itemDecorations(font(), st, x, y); }
     public void itemScaled(ItemStack st, float x, float y, float sc) { push(); translate(x, y); scale(sc); g.item(st, 0, 0); pop(); }
     public void push() { g.pose().pushMatrix(); }
     public void translate(float x, float y) { g.pose().translate(x, y); }

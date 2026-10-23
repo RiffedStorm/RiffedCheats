@@ -37,15 +37,22 @@ public final class PlayersPage implements Page {
 
     private String selected;
     private int scroll;
+    /** Inventory editor of the selected player; while open it takes over the whole tab. */
+    private InventoryPage inv;
+    private final InventoryPage invPage = new InventoryPage(() -> selected, () -> inv = null);
     private int x, y, w, h;
     private static final int LW = 124;
 
     private List<String> names() { return Compat.onlinePlayers(); }
 
+    @Override public boolean wantsText() { return inv != null; }
+
     @Override
     public void render(Gfx g, int mx, int my, int x, int y, int w, int h) {
         this.x = x; this.y = y; this.w = w; this.h = h;
         List<String> names = names();
+        if (inv != null && selected != null && names.contains(selected)) { inv.render(g, mx, my, x, y, w, h); return; }
+        inv = null;
         if (selected != null && !names.contains(selected)) selected = null;
         if (selected == null && !names.isEmpty()) selected = names.get(0);
 
@@ -62,7 +69,8 @@ public final class PlayersPage implements Page {
 
         int rx = x + LW + 8, rw = w - LW - 8;
         if (selected == null) { g.text("No players online.", rx, y, Ui.DIM); return; }
-        g.text("Target: " + selected, rx, y, Ui.TEXT);
+        g.text(Ui.fit(g, "Target: " + selected, rw - 80), rx, y, Ui.TEXT);
+        Ui.button(g, "Inventory", rx + rw - 74, y - 3, 74, 14, Ui.in(mx, my, rx + rw - 74, y - 3, 74, 14), false);
         int bw = (rw - 4) / 2;
         for (int i = 0; i < ACTS.size(); i++) {
             int bx = rx + (i % 2) * (bw + 4), by = y + GRID + (i / 2) * PITCH;
@@ -81,12 +89,19 @@ public final class PlayersPage implements Page {
 
     @Override
     public boolean click(int mx, int my, int btn) {
+        if (inv != null) return inv.click(mx, my, btn);
         List<String> names = names();
         int rows = (h - 14) / 18;
         for (int i = 0; i < rows && scroll + i < names.size(); i++)
             if (Ui.in(mx, my, x, y + 14 + i * 18, LW, 17)) { selected = names.get(scroll + i); return true; }
         int rx = x + LW + 8, rw = w - LW - 8, bw = (rw - 4) / 2;
         if (selected != null) {
+            if (Ui.in(mx, my, rx + rw - 74, y - 3, 74, 14)) {
+                inv = invPage;
+                invPage.reload();
+                if (selected.equals(Compat.selfName())) inv = new InventoryPage(null, () -> inv = null); // yourself: live client copy
+                return true;
+            }
             for (int i = 0; i < ACTS.size(); i++) {
                 int bx = rx + (i % 2) * (bw + 4), by = y + GRID + (i / 2) * PITCH;
                 if (Ui.in(mx, my, bx, by, bw, 17)) { Cmd.run(ACTS.get(i).cmds().apply(selected)); return true; }
@@ -102,5 +117,12 @@ public final class PlayersPage implements Page {
     }
 
     @Override
-    public boolean scroll(int mx, int my, double dy) { scroll -= (int) Math.signum(dy); return true; }
+    public boolean scroll(int mx, int my, double dy) {
+        if (inv != null) return inv.scroll(mx, my, dy);
+        scroll -= (int) Math.signum(dy);
+        return true;
+    }
+
+    @Override public boolean typed(char c) { return inv != null && inv.typed(c); }
+    @Override public boolean key(int key, int scan, int mods) { return inv != null && inv.key(key, scan, mods); }
 }
