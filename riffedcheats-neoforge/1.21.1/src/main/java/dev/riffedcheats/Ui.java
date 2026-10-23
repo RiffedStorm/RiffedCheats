@@ -34,6 +34,12 @@ public final class Ui {
         center(g, fit(g, label, w - 6), x, y + (h - 8) / 2, w, TEXT);
     }
 
+    /** Button that stays highlighted while selected (e.g. the count preset that is currently active). */
+    public static void selButton(Gfx g, String label, int x, int y, int w, int h, boolean hover, boolean selected) {
+        rr(g, x, y, w, h, selected ? SEL : hover ? HOVER : BTN);
+        center(g, fit(g, label, w - 6), x, y + (h - 8) / 2, w, TEXT);
+    }
+
     /** Button colored by state: green = on, red = off, normal = unknown. */
     public static void stateButton(Gfx g, String label, int x, int y, int w, int h, boolean hover, Boolean on) {
         int c = on == null ? (hover ? HOVER : BTN) : on ? (hover ? 0xFF3A9A63 : 0xFF2E7D4F) : (hover ? 0xFFA03A48 : 0xFF86303C);

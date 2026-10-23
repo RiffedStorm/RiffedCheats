@@ -132,7 +132,7 @@ public final class MobsPage implements Page {
         int[] presets = { 1, 5, 10 };
         for (int i = 0; i < 3; i++) {
             int bx = rx + 100 + i * 34;
-            Ui.button(g, String.valueOf(presets[i]), bx, cy, 30, 16, Ui.in(mx, my, bx, cy, 30, 16), false);
+            Ui.selButton(g, String.valueOf(presets[i]), bx, cy, 30, 16, Ui.in(mx, my, bx, cy, 30, 16), count == presets[i]);
         }
 
         // ---- options (two columns) ----
@@ -221,7 +221,8 @@ public final class MobsPage implements Page {
 
     @Override
     public boolean scroll(int mx, int my, double dy) {
-        if (mx < x + LW + 4) listScroll -= (int) Math.signum(dy) * 3;
+        if (mx >= rx() && my >= y + COUNT_Y && my < y + COUNT_Y + 16) count = Math.max(1, Math.min(64, count + (int) Math.signum(dy))); // wheel over the count row
+        else if (mx < x + LW + 4) listScroll -= (int) Math.signum(dy) * 3;
         return true;
     }
 

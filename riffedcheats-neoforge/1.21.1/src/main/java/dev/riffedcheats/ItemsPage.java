@@ -137,7 +137,7 @@ public final class ItemsPage implements Page {
         int[] presets = { 1, 16, 64 };
         for (int i = 0; i < 3; i++) {
             int bx = rx + 100 + i * 34;
-            Ui.button(g, String.valueOf(presets[i]), bx, cy, 30, 16, Ui.in(mx, my, bx, cy, 30, 16), false);
+            Ui.selButton(g, String.valueOf(presets[i]), bx, cy, 30, 16, Ui.in(mx, my, bx, cy, 30, 16), count == presets[i]);
         }
 
         // ---- toggles (full width so the labels fit) ----
@@ -235,7 +235,8 @@ public final class ItemsPage implements Page {
     @Override
     public boolean scroll(int mx, int my, double dy) {
         int d = (int) -Math.signum(dy);
-        if (mx < x + LW + 4) listScroll += d * 3;
+        if (mx >= rx() && my >= y + COUNT_Y && my < y + COUNT_Y + 16) count = Math.max(1, Math.min(64, count - d)); // wheel over the count row
+        else if (mx < x + LW + 4) listScroll += d * 3;
         else enchScroll += d;
         return true;
     }

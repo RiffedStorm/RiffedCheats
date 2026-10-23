@@ -92,6 +92,8 @@ public final class InventoryPage implements Page {
         return slot < 9 ? y + GY + 3 * S + 4 : y + GY + ((slot - 9) / 9) * S;
     }
 
+    private static final int[] PRESETS = { 1, 16, 64 };
+    private int presetX(int i) { return rx() + 90 + i * 22; }
     private int rx() { return x + RX0; }
     private int rw() { return w - RX0; }
     private int listRows() { return Math.max(1, (h - LIST) / ROWH); }
@@ -189,8 +191,9 @@ public final class InventoryPage implements Page {
         Ui.button(g, "-", rx + 34, cy, 14, 14, Ui.in(mx, my, rx + 34, cy, 14, 14), false);
         Ui.center(g, String.valueOf(count), rx + 48, cy + 3, 24, Ui.TEXT);
         Ui.button(g, "+", rx + 72, cy, 14, 14, Ui.in(mx, my, rx + 72, cy, 14, 14), false);
-        Ui.button(g, "64", rx + 90, cy, 24, 14, Ui.in(mx, my, rx + 90, cy, 24, 14), false);
-        Ui.button(g, "Set Count", rx + 118, cy, rw - 118, 14, Ui.in(mx, my, rx + 118, cy, rw - 118, 14), false);
+        for (int i = 0; i < PRESETS.length; i++)
+            Ui.selButton(g, String.valueOf(PRESETS[i]), presetX(i), cy, 20, 14, Ui.in(mx, my, presetX(i), cy, 20, 14), count == PRESETS[i]);
+        Ui.button(g, "Set", rx + 158, cy, rw - 158, 14, Ui.in(mx, my, rx + 158, cy, rw - 158, 14), false);
 
         int ay = y + 76, aw = (rw - 8) / 3;
         Ui.button(g, "Remove", rx, ay, aw, 16, Ui.in(mx, my, rx, ay, aw, 16), true);
@@ -267,10 +270,10 @@ public final class InventoryPage implements Page {
         int rx = rx(), rw = rw(), cy = y + 56;
         if (Ui.in(mx, my, rx + 34, cy, 14, 14)) { count = Math.max(1, count - (btn == 1 ? 8 : 1)); return true; }
         if (Ui.in(mx, my, rx + 72, cy, 14, 14)) { count = Math.min(99, count + (btn == 1 ? 8 : 1)); return true; }
-        if (Ui.in(mx, my, rx + 90, cy, 24, 14)) { count = 64; return true; }
+        for (int i = 0; i < PRESETS.length; i++) if (Ui.in(mx, my, presetX(i), cy, 20, 14)) { count = PRESETS[i]; return true; }
         if (sel == null) return false;
         ItemStack st = stack(sel);
-        if (Ui.in(mx, my, rx + 118, cy, rw - 118, 14)) { modify("{function:\"minecraft:set_count\",count:" + count + "}"); after(); return true; }
+        if (Ui.in(mx, my, rx + 158, cy, rw - 158, 14)) { modify("{function:\"minecraft:set_count\",count:" + count + "}"); after(); return true; }
 
         int ay = y + 76, aw = (rw - 8) / 3;
         if (Ui.in(mx, my, rx, ay, aw, 16)) { Cmd.run("item replace entity " + who() + " " + slotArg(sel) + " with minecraft:air"); after(); return true; }
@@ -313,7 +316,8 @@ public final class InventoryPage implements Page {
     @Override
     public boolean scroll(int mx, int my, double dy) {
         int d = (int) -Math.signum(dy);
-        if (mx < x + LW + 4) listScroll += d * 3; else enchScroll += d;
+        if (mx >= rx() && my >= y + 56 && my < y + 70) count = Math.max(1, Math.min(99, count - d)); // wheel over the count row
+        else if (mx < x + LW + 4) listScroll += d * 3; else enchScroll += d;
         return true;
     }
 
