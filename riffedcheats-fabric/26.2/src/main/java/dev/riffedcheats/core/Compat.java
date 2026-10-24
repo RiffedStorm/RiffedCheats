@@ -418,4 +418,8 @@ public final class Compat {
         try { return (boolean) Refl.call(e, "canEnchant", st); } catch (Throwable ignored) {}
         return true;
     }
+
+    /** Modifier keys held right now (multi-select in the inventory editor). */
+    public static boolean shift() { return Minecraft.getInstance().hasShiftDown(); }
+    public static boolean ctrl() { return Minecraft.getInstance().hasControlDown(); }
 }

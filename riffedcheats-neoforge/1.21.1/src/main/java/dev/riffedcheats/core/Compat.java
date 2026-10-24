@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.client.multiplayer.PlayerInfo;
@@ -326,4 +327,8 @@ public final class Compat {
         Enchantment e = reg().get(ResourceLocation.parse(id));
         return e != null && e.canEnchant(st);
     }
+
+    /** Modifier keys held right now (multi-select in the inventory editor). */
+    public static boolean shift() { return Screen.hasShiftDown(); }
+    public static boolean ctrl() { return Screen.hasControlDown(); }
 }
