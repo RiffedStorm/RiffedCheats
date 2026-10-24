@@ -430,4 +430,15 @@ public final class Compat {
     public static String itemSnbt(ItemStack st) {
         return ItemStack.CODEC.encodeStart(mc().level.registryAccess().createSerializationContext(NbtOps.INSTANCE), st).getOrThrow().toString();
     }
+
+    /** A client-only villager (or wandering trader) for the summoner's preview; null when there is no world. */
+    public static LivingEntity villagerPreview(boolean trader, String profession, String type, int level) {
+        if (mc().level == null) return null;
+        if (trader) return new net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader(net.minecraft.world.entity.EntityTypes.WANDERING_TRADER, mc().level);
+        var v = new net.minecraft.world.entity.npc.villager.Villager(net.minecraft.world.entity.EntityTypes.VILLAGER, mc().level);
+        var t = net.minecraft.core.registries.BuiltInRegistries.VILLAGER_TYPE.get(Identifier.parse(type));
+        var p = net.minecraft.core.registries.BuiltInRegistries.VILLAGER_PROFESSION.get(Identifier.parse(profession));
+        if (t.isPresent() && p.isPresent()) v.setVillagerData(new net.minecraft.world.entity.npc.villager.VillagerData(t.get(), p.get(), level));
+        return v;
+    }
 }

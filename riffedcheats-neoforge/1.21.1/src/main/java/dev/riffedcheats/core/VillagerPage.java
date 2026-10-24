@@ -8,7 +8,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /**
- * Villager / wandering trader summoner with custom trades. Left: item picker. Right: job, biome, level, options,
+ * Villager / wandering trader summoner with custom trades. Left: live 3D preview + item picker. Right: job, biome, level, options,
  * the trade list and an editor for the selected trade (Cost + Cost 2 = Result). Without custom trades the
  * villager gets the normal ones for its job. Long data is sent as several commands, so it works on servers too (OP).
  */
@@ -20,7 +20,7 @@ public final class VillagerPage implements Page {
         int uses = USES.length - 1;
     }
 
-    private static final int LW = 150, ROWH = 16, TR_H = 18, TR_ROWS = 4;
+    private static final int LW = 150, ROWH = 16, TR_H = 18, TR_ROWS = 4, PV = 96, SEARCH = PV + 4, LIST = PV + 24;
     private static final int R_JOB = 18, R_LVL = 38, R_OPT1 = 58, R_OPT2 = 76, R_NAME = 96, R_TR = 116, R_LIST = 132, R_ED = 212, R_ED2 = 234;
     private static final int[] USES = { 1, 4, 12, 16, 32, 64, Integer.MAX_VALUE };
     private static final String[] LEVELS = { "Novice", "Apprentice", "Journeyman", "Expert", "Master" };
@@ -43,6 +43,9 @@ public final class VillagerPage implements Page {
     private String note;
     private long noteUntil;
     private int x, y, w, h;
+    private net.minecraft.world.entity.LivingEntity preview;   // client-only model shown in the preview box
+    private String previewKey;
+    private Object previewLevel;
 
     public VillagerPage() { name.max = 24; name.focused = false; }
 
@@ -97,7 +100,7 @@ public final class VillagerPage implements Page {
     private int rx() { return x + LW + 8; }
     private int rw() { return w - LW - 8; }
     private int hw() { return (rw() - 4) / 2; }
-    private int listRows() { return Math.max(1, (h - 32) / ROWH); }
+    private int listRows() { return Math.max(1, (h - LIST - 12) / ROWH); }
     private int boxX(int i) { return rx() + i * 30; }
     private int jobW() { return rw() - 94; }             // job selector; the biome one gets the rest
 
@@ -126,13 +129,14 @@ public final class VillagerPage implements Page {
         init();
         refilter();
 
-        // ---- left: item picker ----
-        search.draw(g, x, y, LW, 16, "Search items...");
+        // ---- left: preview + item picker ----
+        drawPreview(g, mx, my);
+        search.draw(g, x, y + SEARCH, LW, 16, "Search items...");
         int rows = listRows();
         listScroll = Math.max(0, Math.min(listScroll, Math.max(0, view.size() - rows)));
         for (int i = 0; i < rows && listScroll + i < view.size(); i++) {
             ItemsPage.Entry e = view.get(listScroll + i);
-            int ry = y + 20 + i * ROWH;
+            int ry = y + LIST + i * ROWH;
             Ui.rr(g, x, ry, LW, ROWH - 1, Ui.in(mx, my, x, ry, LW, ROWH - 1) ? Ui.HOVER : Ui.BTN);
             g.item(e.stack(), x + 1, ry - 1);
             g.text(Ui.fit(g, e.name(), LW - 24), x + 20, ry + 4, Ui.TEXT);
@@ -226,6 +230,34 @@ public final class VillagerPage implements Page {
         Ui.button(g, sum, rx, y + h - 18, rw, 18, Ui.in(mx, my, rx, y + h - 18, rw, 18), false);
     }
 
+    /** The villager as it will look (job, biome, level badge), turning its head toward the mouse. */
+    private void drawPreview(Gfx g, int mx, int my) {
+        Ui.rr(g, x, y, LW, PV, Ui.DARK);
+        String j = jobs.isEmpty() ? "minecraft:none" : jobs.get(job), b = biomes.isEmpty() ? "minecraft:plains" : biomes.get(biome);
+        String key = trader + "|" + j + "|" + b + "|" + level;
+        Object lvl = net.minecraft.client.Minecraft.getInstance().level;
+        if (!key.equals(previewKey) || lvl != previewLevel) {
+            previewKey = key;
+            previewLevel = lvl;
+            try { preview = Compat.villagerPreview(trader, j, b, level); } catch (Throwable t) { preview = null; }
+        }
+        if (preview != null) {
+            try { g.entity(preview, x + LW - 74, y + 2, x + LW - 4, y + PV - 2, 42f, mx, my); } catch (Throwable ignored) {}
+        }
+        int ty = y + 6;
+        String n = name.text.trim();
+        if (!n.isEmpty()) { g.text(Ui.fit(g, n, 72), x + 5, ty, Ui.TEXT); ty += 14; }
+        if (trader) {
+            g.text("Wandering", x + 5, ty, Ui.TEXT);
+            g.text("Trader", x + 5, ty + 11, Ui.TEXT);
+        } else {
+            g.text(Ui.fit(g, pretty(j), 72), x + 5, ty, Ui.TEXT);
+            g.text(Ui.fit(g, pretty(b), 72), x + 5, ty + 11, Ui.DIM);
+            g.text(Ui.fit(g, LEVELS[level - 1], 72), x + 5, ty + 22, Ui.DIM);
+        }
+        g.text("Preview", x + 5, y + PV - 12, Ui.DIM);
+    }
+
     private static String usesText(int i) { return USES[i] == Integer.MAX_VALUE ? "∞" : USES[i] + "x"; }
 
     private static void stack(Gfx g, ItemStack st, int sx, int sy) {
@@ -261,13 +293,13 @@ public final class VillagerPage implements Page {
     // ------------------------------------------------------------------ input
     @Override
     public boolean click(int mx, int my, int btn) {
-        if (Ui.in(mx, my, x, y, LW, 16)) { search.focused = true; name.focused = false; return true; }
+        if (Ui.in(mx, my, x, y + SEARCH, LW, 16)) { search.focused = true; name.focused = false; return true; }
         int rx = rx(), rw = rw(), hw = hw();
         if (Ui.in(mx, my, rx, y + R_NAME, rw, 14)) { name.focused = true; search.focused = false; return true; }
 
         int rows = listRows();
         for (int i = 0; i < rows && listScroll + i < view.size(); i++)
-            if (Ui.in(mx, my, x, y + 20 + i * ROWH, LW, ROWH - 1)) { pick(view.get(listScroll + i)); return true; }
+            if (Ui.in(mx, my, x, y + LIST + i * ROWH, LW, ROWH - 1)) { pick(view.get(listScroll + i)); return true; }
 
         if (Ui.in(mx, my, rx, y, hw, 14)) { trader = false; return true; }
         if (Ui.in(mx, my, rx + hw + 4, y, hw, 14)) { trader = true; return true; }
@@ -389,7 +421,7 @@ public final class VillagerPage implements Page {
     @Override
     public boolean scroll(int mx, int my, double dy) {
         int d = (int) -Math.signum(dy);
-        if (mx < x + LW + 4) listScroll += d * 3;
+        if (mx < x + LW + 4) { if (my >= y + LIST) listScroll += d * 3; }
         else if (my >= y + R_LIST && my < y + R_LIST + TR_ROWS * (TR_H + 1)) trScroll += d;
         else if (cur != null && my >= y + R_ED && my < y + R_ED + 18) count(-d);
         return true;

@@ -43,4 +43,21 @@ public final class Gfx {
     public void translate(float x, float y) { g.pose().translate(x, y); }
     public void scale(float s) { g.pose().scale(s, s); }
     public void pop() { g.pose().popMatrix(); }
+
+
+    /**
+     * Draws a living entity that looks at the mouse, inside the box x0,y0 - x1,y1 (menu units). size = pixels per block.
+     * Vanilla's helper works in plain screen coordinates, so the menu's scaling is applied here and the pose reset meanwhile.
+     */
+    public void entity(net.minecraft.world.entity.LivingEntity e, int x0, int y0, int x1, int y1, float size, float mx, float my) {
+        org.joml.Matrix3x2f m = new org.joml.Matrix3x2f(g.pose());
+        org.joml.Vector2f a = m.transformPosition(new org.joml.Vector2f(x0, y0)), b = m.transformPosition(new org.joml.Vector2f(x1, y1));
+        org.joml.Vector2f mouse = m.transformPosition(new org.joml.Vector2f(mx, my));
+        float s = (b.x - a.x) / Math.max(1, x1 - x0);
+        g.pose().pushMatrix();
+        g.pose().identity();
+        net.minecraft.client.gui.screens.inventory.InventoryScreen.extractEntityInInventoryFollowsMouse(g,
+                Math.round(a.x), Math.round(a.y), Math.round(b.x), Math.round(b.y), Math.round(size * s), 0.0625f, mouse.x, mouse.y, e);
+        g.pose().popMatrix();
+    }
 }
