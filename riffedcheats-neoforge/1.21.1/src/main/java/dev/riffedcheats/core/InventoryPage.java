@@ -14,7 +14,8 @@ import net.minecraft.world.item.ItemStack;
 /**
  * Inventory editor (yours, or another player's from the Players tab): armor, offhand, main inventory and hotbar.
  * Click a slot, then put an item in it from the search list, change the count, remove / repair / make it
- * unbreakable, or edit its enchantments. Everything is done with /item, so it works on servers too (OP).
+ * unbreakable, copy another player's item to yourself, or edit its enchantments. Everything is done with /item,
+ * so it works on servers too (OP).
  */
 public final class InventoryPage implements Page {
     private static final int S = 18, GX = 22, GY = 16, LW = 186, RX0 = 194, LIST = 144, ROWH = 16, EN = 136;
@@ -34,6 +35,8 @@ public final class InventoryPage implements Page {
     private int listScroll, enchScroll, count = 1;
     private Integer sel;                     // selected slot
     private boolean showAll;
+    private String note;                     // short result message shown in the hint line
+    private long noteUntil;
     private int x, y, w, h;
 
     public InventoryPage(Supplier<String> target, Runnable back) { this.target = target; this.back = back; }
@@ -102,6 +105,8 @@ public final class InventoryPage implements Page {
     private int enchRows() { return Math.max(1, (y + h - top() - EN - 22) / 16); }
     private int backX() { return x + w - 50; }
     private int refreshX() { return x + w - (back != null ? 104 : 50); }
+    /** Width of the Unbreakable button: shares its row with Copy to Me when viewing another player. */
+    private int ubw() { return target != null ? (rw() - 4) / 2 : rw(); }
 
     private void refilter() {
         if (search.text.equals(lastQuery)) return;
@@ -160,8 +165,9 @@ public final class InventoryPage implements Page {
                 g.decorations(st, bx, by);   // count + durability bar
             }
         }
-        String hint = hovered != null ? hovered.getHoverName().getString() : sel == null ? "Click a slot to edit it." : "Editing: " + slotLabel(sel);
-        g.text(Ui.fit(g, hint, LW), x, y + GY + 5 * S + 2, Ui.DIM);
+        boolean noted = note != null && System.currentTimeMillis() < noteUntil;
+        String hint = hovered != null ? hovered.getHoverName().getString() : noted ? note : sel == null ? "Click a slot to edit it." : "Editing: " + slotLabel(sel);
+        g.text(Ui.fit(g, hint, LW), x, y + GY + 5 * S + 2, hovered == null && noted ? Ui.TEXT : Ui.DIM);
 
         // ---- item picker ----
         search.draw(g, x, y + LIST - 18, LW, 14, sel == null ? "Search item (goes to first free slot)" : "Search item to put in the slot");
@@ -200,7 +206,9 @@ public final class InventoryPage implements Page {
         int ay = top() + 76, aw = (rw - 4) / 2;
         Ui.button(g, "Remove", rx, ay, aw, 16, Ui.in(mx, my, rx, ay, aw, 16), true);
         Ui.button(g, "Repair", rx + aw + 4, ay, aw, 16, Ui.in(mx, my, rx + aw + 4, ay, aw, 16), false);
-        Ui.button(g, "Unbreakable", rx, ay + 20, rw, 16, Ui.in(mx, my, rx, ay + 20, rw, 16), false);
+        int ub = ubw();
+        Ui.button(g, "Unbreakable", rx, ay + 20, ub, 16, Ui.in(mx, my, rx, ay + 20, ub, 16), false);
+        if (target != null) Ui.button(g, "Copy to Me", rx + ub + 4, ay + 20, ub, 16, Ui.in(mx, my, rx + ub + 4, ay + 20, ub, 16), false);
 
         // ---- enchantments ----
         int hy = top() + 118;
@@ -258,6 +266,19 @@ public final class InventoryPage implements Page {
         after();
     }
 
+    /** Copies the selected slot of the other player (with all its data) into your first free inventory slot. */
+    private void copyToMe() {
+        if (sel == null || stack(sel).isEmpty()) return;
+        LocalPlayer p = Minecraft.getInstance().player;
+        if (p == null) return;
+        int free = -1;
+        for (int i = 0; i < 36; i++) if (p.getInventory().getItem(i).isEmpty()) { free = i; break; }
+        note(free < 0 ? "Your inventory is full." : "Copied to your " + slotLabel(free) + ".");
+        if (free >= 0) Cmd.run("item replace entity @s container." + free + " from entity " + who() + " " + slotArg(sel));
+    }
+
+    private void note(String s) { note = s; noteUntil = System.currentTimeMillis() + 3000; }
+
     // ------------------------------------------------------------------ input
     @Override
     public boolean click(int mx, int my, int btn) {
@@ -280,7 +301,8 @@ public final class InventoryPage implements Page {
         int ay = top() + 76, aw = (rw - 4) / 2;
         if (Ui.in(mx, my, rx, ay, aw, 16)) { Cmd.run("item replace entity " + who() + " " + slotArg(sel) + " with minecraft:air"); after(); return true; }
         if (Ui.in(mx, my, rx + aw + 4, ay, aw, 16)) { modify("{function:\"minecraft:set_damage\",damage:1.0}"); after(); return true; }
-        if (Ui.in(mx, my, rx, ay + 20, rw, 16)) {
+        if (target != null && Ui.in(mx, my, rx + ubw() + 4, ay + 20, ubw(), 16)) { copyToMe(); return true; }
+        if (Ui.in(mx, my, rx, ay + 20, ubw(), 16)) {
             modify("{function:\"minecraft:set_components\",components:{\"minecraft:unbreakable\":{}}}");
             after();
             return true;
