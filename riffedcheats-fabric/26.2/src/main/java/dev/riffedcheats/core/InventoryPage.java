@@ -50,6 +50,7 @@ public final class InventoryPage implements Page {
     private String note;                     // short result message shown in the hint line
     private long noteUntil;
     private int x, y, w, h;
+    private final Scrollbar bar = new Scrollbar(), enchBar = new Scrollbar();
 
     public InventoryPage(Supplier<String> target, Runnable back) { this.target = target; this.back = back; }
 
@@ -228,6 +229,7 @@ public final class InventoryPage implements Page {
                 : picked.size() > 1 ? "Search item to put in the selected slots" : "Search item to put in the slot");
         int rows = listRows();
         listScroll = Math.max(0, Math.min(listScroll, Math.max(0, view.size() - rows)));
+        bar.draw(g, x + LW + 2, y + LIST, rows * ROWH - 1, view.size(), rows, listScroll, mx, my);
         for (int i = 0; i < rows && listScroll + i < view.size(); i++) {
             ItemsPage.Entry e = view.get(listScroll + i);
             int ry = y + LIST + i * ROWH;
@@ -275,6 +277,7 @@ public final class InventoryPage implements Page {
         Map<String, Integer> cur = st.isEmpty() ? Map.of() : Compat.enchantsOf(st);
         int er = enchRows();
         enchScroll = Math.max(0, Math.min(enchScroll, Math.max(0, ids.size() - er)));
+        enchBar.draw(g, x + w + 1, top() + EN, er * 16 - 1, st.isEmpty() ? 0 : ids.size(), er, enchScroll, mx, my);
         if (st.isEmpty()) g.text(sel == null ? "Select a slot first." : "Put an item in the slot first.", rx, top() + EN + 2, Ui.DIM);
         else if (ids.isEmpty()) g.text("No compatible enchantments.", rx, top() + EN + 2, Ui.DIM);
         for (int i = 0; i < er && enchScroll + i < ids.size(); i++) {
@@ -351,6 +354,8 @@ public final class InventoryPage implements Page {
     public boolean click(int mx, int my, int btn) {
         if (back != null && Ui.in(mx, my, backX(), y, 50, 13)) { back.run(); return true; }
         if (target != null && Ui.in(mx, my, refreshX(), y, 50, 13)) { Inventories.request(name()); return true; }
+        if (bar.press(mx, my)) { listScroll = bar.at(my); return true; }
+        if (enchBar.press(mx, my)) { enchScroll = enchBar.at(my); return true; }
         Integer hit = slotAt(mx, my);
         if (hit != null) { pick(hit); return true; }
         int rows = listRows();
@@ -414,13 +419,15 @@ public final class InventoryPage implements Page {
 
     @Override
     public boolean drag(int mx, int my) {
+        if (bar.dragging()) { listScroll = bar.at(my); return true; }
+        if (enchBar.dragging()) { enchScroll = enchBar.at(my); return true; }
         if (!dragging) return false;
         Integer hit = slotAt(mx, my);
         if (hit != null) picked.add(hit);
         return true;
     }
 
-    @Override public void release() { dragging = false; }
+    @Override public void release() { dragging = false; bar.release(); enchBar.release(); }
 
     @Override
     public boolean scroll(int mx, int my, double dy) {

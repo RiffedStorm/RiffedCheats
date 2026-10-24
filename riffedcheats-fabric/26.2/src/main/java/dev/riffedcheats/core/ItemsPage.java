@@ -29,6 +29,7 @@ public final class ItemsPage implements Page {
     private int count = 1;
     private boolean showAll;
     private int x, y, w, h;
+    private final Scrollbar bar = new Scrollbar(), enchBar = new Scrollbar();
 
     @Override public boolean wantsText() { return true; }
 
@@ -114,6 +115,7 @@ public final class ItemsPage implements Page {
             g.item(e.stack(), x + 1, ry);
             g.text(Ui.fit(g, e.name(), LW - 24), x + 20, ry + 5, Ui.TEXT);
         }
+        bar.draw(g, x + LW + 2, y + 20, rows * ROWH - 1, view.size(), rows, listScroll, mx, my);
         g.text(view.size() + " items", x + 2, y + h - 9, Ui.DIM);
 
         // ---- right: preview ----
@@ -150,6 +152,7 @@ public final class ItemsPage implements Page {
         chip(g, "Show All", showAll, rx + rw - 90, hy - 1, 90, Ui.in(mx, my, rx + rw - 90, hy - 1, 90, 16));
         int er = enchRows();
         enchScroll = Math.max(0, Math.min(enchScroll, Math.max(0, enchIds.size() - er)));
+        enchBar.draw(g, x + w + 1, y + LIST, er * 16 - 1, enchIds.size(), er, enchScroll, mx, my);
         if (selected == null) g.text("Select an item first.", rx, y + LIST + 2, Ui.DIM);
         else if (enchIds.isEmpty()) g.text("No compatible enchantments.", rx, y + LIST + 2, Ui.DIM);
         for (int i = 0; i < er && enchScroll + i < enchIds.size(); i++) {
@@ -181,6 +184,8 @@ public final class ItemsPage implements Page {
 
     @Override
     public boolean click(int mx, int my, int btn) {
+        if (bar.press(mx, my)) { listScroll = bar.at(my); return true; }
+        if (enchBar.press(mx, my)) { enchScroll = enchBar.at(my); return true; }
         int rows = listRows();
         for (int i = 0; i < rows && listScroll + i < view.size(); i++)
             if (Ui.in(mx, my, x, y + 20 + i * ROWH, LW, ROWH - 1)) { select(view.get(listScroll + i)); return true; }
@@ -231,6 +236,16 @@ public final class ItemsPage implements Page {
         String cmd = "give @s " + selected.id() + (comps.isEmpty() ? "" : "[" + String.join(",", comps) + "]") + " " + count;
         Cmd.run(cmd);
     }
+
+    @Override
+    public boolean drag(int mx, int my) {
+        if (bar.dragging()) listScroll = bar.at(my);
+        else if (enchBar.dragging()) enchScroll = enchBar.at(my);
+        else return false;
+        return true;
+    }
+
+    @Override public void release() { bar.release(); enchBar.release(); }
 
     @Override
     public boolean scroll(int mx, int my, double dy) {

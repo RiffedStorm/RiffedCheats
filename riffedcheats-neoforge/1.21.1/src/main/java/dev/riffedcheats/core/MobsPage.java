@@ -29,6 +29,7 @@ public final class MobsPage implements Page {
     private Entry selected, hovered;
     private boolean noAi, baby, glow, invul, persist, silent, front = true;
     private int x, y, w, h;
+    private final Scrollbar bar = new Scrollbar();
 
     public MobsPage() { name.max = 24; name.focused = false; }
 
@@ -109,6 +110,7 @@ public final class MobsPage implements Page {
             g.item(e.icon(), x + 1, ry);
             g.text(Ui.fit(g, e.name(), LW - 24), x + 20, ry + 5, Ui.TEXT);
         }
+        bar.draw(g, x + LW + 2, y + LIST, rows * ROWH - 1, view.size(), rows, listScroll, mx, my);
         g.text(view.size() + " entities", x + 2, y + h - 9, Ui.DIM);
 
         // ---- right: preview ----
@@ -161,6 +163,7 @@ public final class MobsPage implements Page {
 
     @Override
     public boolean click(int mx, int my, int btn) {
+        if (bar.press(mx, my)) { listScroll = bar.at(my); return true; }
         if (Ui.in(mx, my, x, y, LW, 16)) { search.focused = true; name.focused = false; return true; }
         int rx = rx(), rw = rw(), hw = hw();
         if (Ui.in(mx, my, rx, y + NAME_Y, rw, 16)) { name.focused = true; search.focused = false; return true; }
@@ -218,6 +221,9 @@ public final class MobsPage implements Page {
             Cmd.run(pre + "summon " + selected.id() + " " + off(ox) + " ~ " + off(oz) + nbt);
         }
     }
+
+    @Override public boolean drag(int mx, int my) { if (!bar.dragging()) return false; listScroll = bar.at(my); return true; }
+    @Override public void release() { bar.release(); }
 
     @Override
     public boolean scroll(int mx, int my, double dy) {

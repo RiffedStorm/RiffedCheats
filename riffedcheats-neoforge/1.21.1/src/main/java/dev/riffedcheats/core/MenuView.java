@@ -16,6 +16,7 @@ public final class MenuView {
 
     private static int cat, tab, scroll;
     private Setting dragging;
+    private final Scrollbar bar = new Scrollbar();
 
     private static Menu.Tab cur() {
         Menu.Category c = Menu.CATEGORIES.get(cat);
@@ -73,11 +74,7 @@ public final class MenuView {
         int rows = BH / STEP;
         scroll = Math.max(0, Math.min(scroll, Math.max(0, list.size() - rows)));
         for (int i = 0; i < rows && scroll + i < list.size(); i++) drawRow(g, list.get(scroll + i), BY + i * STEP, mx, my);
-        if (list.size() > rows) {
-            int trackH = rows * STEP - 2, th = Math.max(16, trackH * rows / list.size());
-            int ty = BY + (trackH - th) * scroll / Math.max(1, list.size() - rows);
-            Ui.rr(g, BX + BW + 1, ty, 3, th, Ui.ACCENT);
-        }
+        bar.draw(g, BX + BW + 1, BY, rows * STEP - 2, list.size(), rows, scroll, mx, my);
     }
 
     /** Header notice: an update is available / was just installed. Clicking it opens Settings > Updates. */
@@ -196,6 +193,7 @@ public final class MenuView {
         }
         Menu.Tab t = cur();
         if (t.page() != null) { t.page().click(mx, my, btn); return false; }
+        if (bar.press(mx, my)) { scroll = bar.at(my); return false; }
         List<Setting> list = t.settings();
         int rows = BH / STEP;
         for (int i = 0; i < rows && scroll + i < list.size(); i++) {
@@ -223,11 +221,13 @@ public final class MenuView {
 
     public void drag(int mx, int my) {
         if (dragging != null) setSlider(dragging, mx);
+        else if (bar.dragging()) scroll = bar.at(my);
         else if (Access.allowed && cur().page() != null) cur().page().drag(mx, my);
     }
 
     public void release() {
         if (dragging != null) { dragging = null; Menu.changed(); }
+        bar.release();
         if (Access.allowed && cur().page() != null) cur().page().release();
     }
 

@@ -12,6 +12,7 @@ public final class TeleportPage implements Page {
     private String dim;                 // selected dimension tab
     private Teleports.Loc armed;        // delete needs a second click
     private int scroll;
+    private final Scrollbar bar = new Scrollbar();
     private int x, y, w, h;
 
     public TeleportPage() { name.max = 32; }
@@ -55,6 +56,7 @@ public final class TeleportPage implements Page {
         g.text("Saved in " + Teleports.dimName(dim) + " (" + list.size() + ")", x, y + 68, Ui.DIM);
         int rows = rows();
         scroll = Math.max(0, Math.min(scroll, Math.max(0, list.size() - rows)));
+        bar.draw(g, x + w + 1, y + LIST, rows * ROWH - 1, list.size(), rows, scroll, mx, my);
         if (list.isEmpty()) g.text("Nothing saved here yet.", x + 4, y + LIST + 5, Ui.DIM);
         for (int i = 0; i < rows && scroll + i < list.size(); i++) {
             Teleports.Loc l = list.get(scroll + i);
@@ -83,6 +85,7 @@ public final class TeleportPage implements Page {
 
     @Override
     public boolean click(int mx, int my, int btn) {
+        if (bar.press(mx, my)) { scroll = bar.at(my); return true; }
         Teleports.Loc wasArmed = armed;
         armed = null;
         String here = Compat.dimension();
@@ -113,6 +116,9 @@ public final class TeleportPage implements Page {
 
     @Override
     public boolean scroll(int mx, int my, double dy) { scroll -= (int) Math.signum(dy); return true; }
+
+    @Override public boolean drag(int mx, int my) { if (!bar.dragging()) return false; scroll = bar.at(my); return true; }
+    @Override public void release() { bar.release(); }
 
     @Override
     public boolean key(int key, int scan, int mods) {

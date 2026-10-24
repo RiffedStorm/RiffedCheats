@@ -43,6 +43,7 @@ public final class VillagerPage implements Page {
     private String note;
     private long noteUntil;
     private int x, y, w, h;
+    private final Scrollbar bar = new Scrollbar(), trBar = new Scrollbar();
     private net.minecraft.world.entity.LivingEntity preview;   // client-only model shown in the preview box
     private String previewKey;
     private Object previewLevel;
@@ -134,6 +135,7 @@ public final class VillagerPage implements Page {
         search.draw(g, x, y + SEARCH, LW, 16, "Search items...");
         int rows = listRows();
         listScroll = Math.max(0, Math.min(listScroll, Math.max(0, view.size() - rows)));
+        bar.draw(g, x + LW + 2, y + LIST, rows * ROWH - 1, view.size(), rows, listScroll, mx, my);
         for (int i = 0; i < rows && listScroll + i < view.size(); i++) {
             ItemsPage.Entry e = view.get(listScroll + i);
             int ry = y + LIST + i * ROWH;
@@ -172,6 +174,7 @@ public final class VillagerPage implements Page {
         Ui.button(g, "+ Add", rx + rw - 86, y + R_TR, 44, 13, Ui.in(mx, my, rx + rw - 86, y + R_TR, 44, 13), false);
         Ui.button(g, "Clear", rx + rw - 38, y + R_TR, 38, 13, Ui.in(mx, my, rx + rw - 38, y + R_TR, 38, 13), true);
         trScroll = Math.max(0, Math.min(trScroll, Math.max(0, trades.size() - TR_ROWS)));
+        trBar.draw(g, x + w + 1, y + R_LIST, TR_ROWS * (TR_H + 1) - 1, trades.size(), TR_ROWS, trScroll, mx, my);
         if (trades.isEmpty()) {
             int ty = y + R_LIST + 4;
             for (String l : Ui.wrap(g, "No custom trades: the villager gets the normal ones for its job. Add a trade, or click an item on the left.", rw - 4)) {
@@ -293,6 +296,8 @@ public final class VillagerPage implements Page {
     // ------------------------------------------------------------------ input
     @Override
     public boolean click(int mx, int my, int btn) {
+        if (bar.press(mx, my)) { listScroll = bar.at(my); return true; }
+        if (trBar.press(mx, my)) { trScroll = trBar.at(my); return true; }
         if (Ui.in(mx, my, x, y + SEARCH, LW, 16)) { search.focused = true; name.focused = false; return true; }
         int rx = rx(), rw = rw(), hw = hw();
         if (Ui.in(mx, my, rx, y + R_NAME, rw, 14)) { name.focused = true; search.focused = false; return true; }
@@ -417,6 +422,16 @@ public final class VillagerPage implements Page {
         else if (bad > 0) note(bad + " unfinished trade(s) left out.");
         else note(ok.isEmpty() ? "Summoned with normal trades." : "Summoned with " + ok.size() + " custom trade(s).");
     }
+
+    @Override
+    public boolean drag(int mx, int my) {
+        if (bar.dragging()) listScroll = bar.at(my);
+        else if (trBar.dragging()) trScroll = trBar.at(my);
+        else return false;
+        return true;
+    }
+
+    @Override public void release() { bar.release(); trBar.release(); }
 
     @Override
     public boolean scroll(int mx, int my, double dy) {

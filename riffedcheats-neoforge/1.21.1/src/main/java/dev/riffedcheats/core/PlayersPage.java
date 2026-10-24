@@ -37,6 +37,7 @@ public final class PlayersPage implements Page {
 
     private String selected;
     private int scroll;
+    private final Scrollbar bar = new Scrollbar();
     /** Inventory editor of the selected player; while open it takes over the whole tab. */
     private InventoryPage inv;
     private final InventoryPage invPage = new InventoryPage(() -> selected, () -> inv = null);
@@ -60,6 +61,7 @@ public final class PlayersPage implements Page {
         g.text("Players (" + names.size() + ")", x, y, Ui.DIM);
         int rows = (h - 14) / 18;
         scroll = Math.max(0, Math.min(scroll, Math.max(0, names.size() - rows)));
+        bar.draw(g, x + LW + 2, y + 14, rows * 18 - 1, names.size(), rows, scroll, mx, my);
         for (int i = 0; i < rows && scroll + i < names.size(); i++) {
             String n = names.get(scroll + i);
             int ry = y + 14 + i * 18;
@@ -91,6 +93,7 @@ public final class PlayersPage implements Page {
     @Override
     public boolean click(int mx, int my, int btn) {
         if (inv != null) return inv.click(mx, my, btn);
+        if (bar.press(mx, my)) { scroll = bar.at(my); return true; }
         List<String> names = names();
         int rows = (h - 14) / 18;
         for (int i = 0; i < rows && scroll + i < names.size(); i++)
@@ -116,6 +119,16 @@ public final class PlayersPage implements Page {
             if (Ui.in(mx, my, rx + i * (ew + 4), ey + 11, ew, 18)) { Cmd.run(all[i]); return true; }
         return false;
     }
+
+    @Override
+    public boolean drag(int mx, int my) {
+        if (inv != null) return inv.drag(mx, my);   // lets drag-select work in the inventory editor
+        if (!bar.dragging()) return false;
+        scroll = bar.at(my);
+        return true;
+    }
+
+    @Override public void release() { if (inv != null) inv.release(); bar.release(); }
 
     @Override
     public boolean scroll(int mx, int my, double dy) {
