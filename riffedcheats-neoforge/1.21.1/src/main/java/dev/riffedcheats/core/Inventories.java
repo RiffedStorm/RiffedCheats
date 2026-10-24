@@ -5,8 +5,9 @@ import java.util.Map;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Inventories of other players. The client does not know them, so the menu asks the server with
- * "/data get entity <name> Inventory" and parses the item list out of the command feedback.
+ * Inventories of other players. The client does not know them. In your own world the menu captures
+ * "/data get entity <name> Inventory"; on a server it has the server /tellraw the NBT back (works with
+ * sendCommandFeedback off) and parses the item list.
  * Slots: 0-35 main (0-8 hotbar), 100 feet, 101 legs, 102 chest, 103 head, 106 offhand.
  */
 public final class Inventories {
@@ -18,7 +19,9 @@ public final class Inventories {
     public static void request(String name) {
         pending = name;
         pendingAt = System.currentTimeMillis();
-        for (String q : Compat.inventoryQueries(name)) Cmd.query(q);
+        if (Access.mode == Access.Mode.LOCAL) for (String q : Compat.inventoryQueries(name)) Cmd.query(q);
+        else for (String path : Compat.inventoryPaths())
+            Cmd.ask(path.equals("Inventory") ? "inv" : "eq", name, path, "\"entity\":\"" + name + "\"");
     }
 
     private static boolean waiting(String who) {

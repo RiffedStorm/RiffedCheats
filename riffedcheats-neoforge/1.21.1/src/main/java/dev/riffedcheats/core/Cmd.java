@@ -20,12 +20,40 @@ public final class Cmd {
 
     private static void mark() { lastMark = System.currentTimeMillis(); }
 
+    /** Start of the hidden /tellraw answers the menu asks for on servers. */
+    private static final String TAG = "RCQ#";
+    /** Command storage the menu writes game rule values into on servers. */
+    static final String STORAGE = "riffedcheats:q";
+
+    /**
+     * Asks the server to send an NBT value back to this player only, as a /tellraw message the menu reads and hides.
+     * Unlike command feedback this arrives with sendCommandFeedback off and is never shown to other operators.
+     * @param source "entity":"<name>" or "storage":"<id>"
+     */
+    static void ask(String kind, String key, String path, String source) {
+        query("tellraw @s {\"text\":\"" + TAG + kind + "#" + key + "#\",\"extra\":[{\"nbt\":\"" + path + "\"," + source + "}]}");
+    }
+
+    /** "kind#key#value" from a hidden answer. */
+    private static void answer(String s) {
+        String[] p = s.split("#", 3);
+        if (p.length < 3) return;
+        switch (p[0]) {
+            case "rule" -> Rules.put(p[1], p[2]);
+            case "inv" -> { if (!p[2].isEmpty()) Inventories.onData(p[1], p[2]); }
+            case "eq" -> { if (p[2].isEmpty()) Inventories.noEquipment(); else Inventories.onData(p[1], p[2]); }
+            default -> {}
+        }
+    }
+
     /**
      * Called for every incoming system/game message. Reads answers the menu asked for (game rules, inventories),
      * logs console output, and returns true when the message is vanilla command feedback caused by this mod
      * ("Applied effect...", "Set the time...") and should be hidden from the chat. Chat from players is never touched.
      */
     public static boolean onMessage(Component c) {
+        String s = c.getString();
+        if (s.startsWith(TAG)) { answer(s.substring(TAG.length())); return true; }
         dispatch(c);
         // On a server the console output arrives here. Slow commands (locate in big modded worlds) may answer late.
         if (Access.mode != Access.Mode.LOCAL && lastWasConsole && System.currentTimeMillis() - consoleSentAt < 30000)

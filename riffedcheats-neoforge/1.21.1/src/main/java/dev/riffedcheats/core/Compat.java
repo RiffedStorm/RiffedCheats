@@ -103,6 +103,7 @@ public final class Compat {
 
     // ---------------- other players' inventories ----------------
     /** 1.21.1 keeps armor (Slot 100-103) and offhand (Slot -106) inside the Inventory list. */
+    public static String[] inventoryPaths() { return new String[] { "Inventory" }; }
     public static String[] inventoryQueries(String name) { return new String[] { "data get entity " + name + " Inventory" }; }
 
     public static void parseInventory(String snbt, Map<Integer, ItemStack> into) throws Exception {

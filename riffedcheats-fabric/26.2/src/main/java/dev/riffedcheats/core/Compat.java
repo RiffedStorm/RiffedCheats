@@ -128,6 +128,7 @@ public final class Compat {
 
     // ---------------- other players' inventories ----------------
     /** 1.21.5+ keeps armor and offhand in a separate "equipment" compound. */
+    public static String[] inventoryPaths() { return new String[] { "Inventory", "equipment" }; }
     public static String[] inventoryQueries(String name) {
         return new String[] { "data get entity " + name + " Inventory", "data get entity " + name + " equipment" };
     }

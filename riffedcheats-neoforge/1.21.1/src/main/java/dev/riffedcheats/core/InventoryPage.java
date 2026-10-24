@@ -219,7 +219,7 @@ public final class InventoryPage implements Page {
             }
         }
         boolean noted = note != null && System.currentTimeMillis() < noteUntil;
-        String hint = hovered != null ? hovered.getHoverName().getString() : noted ? note : sel == null ? "Click a slot to edit it. Ctrl / Shift / drag: more."
+        String hint = hovered != null ? hovered.getHoverName().getString() : noted ? note : sel == null ? "Click a slot. Ctrl/Shift/drag: more"
                 : picked.size() > 1 ? "Editing: " + picked.size() + " slots" : "Editing: " + slotLabel(sel);
         g.text(Ui.fit(g, hint, LW), x, y + GY + 5 * S + 2, hovered == null && noted ? Ui.TEXT : Ui.DIM);
 
