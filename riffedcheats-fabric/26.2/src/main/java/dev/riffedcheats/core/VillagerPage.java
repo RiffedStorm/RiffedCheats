@@ -1,0 +1,400 @@
+package dev.riffedcheats.core;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
+/**
+ * Villager / wandering trader summoner with custom trades. Left: item picker. Right: job, biome, level, options,
+ * the trade list and an editor for the selected trade (Cost + Cost 2 = Result). Without custom trades the
+ * villager gets the normal ones for its job. Long data is sent as several commands, so it works on servers too (OP).
+ */
+public final class VillagerPage implements Page {
+    /** One trade. b may be empty; custom* = item taken from the hand with all its data (enchantments, name...). */
+    private static final class Trade {
+        ItemStack a = new ItemStack(Items.EMERALD), b = ItemStack.EMPTY, s = ItemStack.EMPTY;
+        boolean customA, customB, customS;
+        int uses = USES.length - 1;
+    }
+
+    private static final int LW = 150, ROWH = 16, TR_H = 18, TR_ROWS = 4;
+    private static final int R_JOB = 18, R_LVL = 38, R_OPT1 = 58, R_OPT2 = 76, R_NAME = 96, R_TR = 116, R_LIST = 132, R_ED = 212, R_ED2 = 234;
+    private static final int[] USES = { 1, 4, 12, 16, 32, 64, Integer.MAX_VALUE };
+    private static final String[] LEVELS = { "Novice", "Apprentice", "Journeyman", "Expert", "Master" };
+    private static final String[][] WORKSTATION = {
+        { "armorer", "blast_furnace" }, { "butcher", "smoker" }, { "cartographer", "cartography_table" },
+        { "cleric", "brewing_stand" }, { "farmer", "composter" }, { "fisherman", "barrel" },
+        { "fletcher", "fletching_table" }, { "leatherworker", "cauldron" }, { "librarian", "lectern" },
+        { "mason", "stonecutter" }, { "shepherd", "loom" }, { "toolsmith", "smithing_table" }, { "weaponsmith", "grindstone" } };
+    private static final String TAG = "rc_villager";
+
+    private final TextField search = new TextField(), name = new TextField();
+    private String lastQuery;
+    private List<ItemsPage.Entry> view = List.of();
+    private List<String> jobs, biomes;
+    private int listScroll, trScroll, job, biome, level = 5;
+    private boolean trader, noAi, invul, silent, fixed = true;
+    private final List<Trade> trades = new ArrayList<>();
+    private Trade cur;
+    private int box = 2;                     // box being edited: 0 = Cost, 1 = Cost 2, 2 = Result
+    private String note;
+    private long noteUntil;
+    private int x, y, w, h;
+
+    public VillagerPage() { name.max = 24; name.focused = false; }
+
+    @Override public boolean wantsText() { return true; }
+
+    private void init() {
+        if (jobs != null) return;
+        jobs = new ArrayList<>();
+        for (var k : BuiltInRegistries.VILLAGER_PROFESSION.keySet()) {
+            String id = k.toString();
+            if (!id.equals("minecraft:none") && !id.equals("minecraft:nitwit")) jobs.add(id);   // those two cannot trade
+        }
+        jobs.sort(null);
+        biomes = new ArrayList<>();
+        for (var k : BuiltInRegistries.VILLAGER_TYPE.keySet()) biomes.add(k.toString());
+        biomes.sort(null);
+        job = Math.max(0, jobs.indexOf("minecraft:librarian"));
+        biome = Math.max(0, biomes.indexOf("minecraft:plains"));
+    }
+
+    private void refilter() {
+        if (search.text.equals(lastQuery)) return;
+        lastQuery = search.text;
+        String[] q = search.text.toLowerCase(Locale.ROOT).trim().split("\\s+");
+        List<ItemsPage.Entry> out = new ArrayList<>();
+        for (ItemsPage.Entry e : ItemsPage.items()) {
+            boolean ok = true;
+            for (String t : q) if (!t.isEmpty() && !e.lower().contains(t)) { ok = false; break; }
+            if (ok) out.add(e);
+        }
+        view = out;
+        listScroll = 0;
+    }
+
+    private static String pretty(String id) {
+        String p = id.substring(id.indexOf(':') + 1).replace('_', ' ');
+        StringBuilder sb = new StringBuilder();
+        for (String s : p.split(" ")) if (!s.isEmpty()) sb.append(Character.toUpperCase(s.charAt(0))).append(s.substring(1)).append(' ');
+        return sb.toString().trim();
+    }
+
+    private static ItemStack jobIcon(String id) {
+        String path = id.substring(id.indexOf(':') + 1);
+        for (String[] w : WORKSTATION) if (w[0].equals(path)) {
+            for (ItemsPage.Entry e : ItemsPage.items()) if (e.id().equals("minecraft:" + w[1])) return e.stack();
+        }
+        return new ItemStack(Items.EMERALD);
+    }
+
+    private void note(String s) { note = s; noteUntil = System.currentTimeMillis() + 4000; }
+
+    private int rx() { return x + LW + 8; }
+    private int rw() { return w - LW - 8; }
+    private int hw() { return (rw() - 4) / 2; }
+    private int listRows() { return Math.max(1, (h - 32) / ROWH); }
+    private int boxX(int i) { return rx() + i * 30; }
+    private int jobW() { return rw() - 94; }             // job selector; the biome one gets the rest
+
+    private ItemStack get(Trade t, int i) { return i == 0 ? t.a : i == 1 ? t.b : t.s; }
+    private void set(Trade t, int i, ItemStack st, boolean custom) {
+        switch (i) {
+            case 0 -> { t.a = st; t.customA = custom; }
+            case 1 -> { t.b = st; t.customB = custom; }
+            default -> { t.s = st; t.customS = custom; }
+        }
+    }
+
+    private Trade addTrade() {
+        Trade t = new Trade();
+        trades.add(t);
+        cur = t;
+        box = 2;
+        trScroll = Math.max(0, trades.size() - TR_ROWS);
+        return t;
+    }
+
+    // ------------------------------------------------------------------ render
+    @Override
+    public void render(Gfx g, int mx, int my, int x, int y, int w, int h) {
+        this.x = x; this.y = y; this.w = w; this.h = h;
+        init();
+        refilter();
+
+        // ---- left: item picker ----
+        search.draw(g, x, y, LW, 16, "Search items...");
+        int rows = listRows();
+        listScroll = Math.max(0, Math.min(listScroll, Math.max(0, view.size() - rows)));
+        for (int i = 0; i < rows && listScroll + i < view.size(); i++) {
+            ItemsPage.Entry e = view.get(listScroll + i);
+            int ry = y + 20 + i * ROWH;
+            Ui.rr(g, x, ry, LW, ROWH - 1, Ui.in(mx, my, x, ry, LW, ROWH - 1) ? Ui.HOVER : Ui.BTN);
+            g.item(e.stack(), x + 1, ry - 1);
+            g.text(Ui.fit(g, e.name(), LW - 24), x + 20, ry + 4, Ui.TEXT);
+        }
+        g.text(Ui.fit(g, "Click an item: puts it in the selected box", LW), x, y + h - 9, Ui.DIM);
+
+        // ---- right: villager ----
+        int rx = rx(), rw = rw(), hw = hw();
+        Ui.selButton(g, "Villager", rx, y, hw, 14, Ui.in(mx, my, rx, y, hw, 14), !trader);
+        Ui.selButton(g, "Wandering Trader", rx + hw + 4, y, hw, 14, Ui.in(mx, my, rx + hw + 4, y, hw, 14), trader);
+        if (trader) {
+            g.text(Ui.fit(g, "Wandering traders have no job or level.", rw), rx, y + R_JOB + 4, Ui.DIM);
+            g.text(Ui.fit(g, "This one never despawns.", rw), rx, y + R_LVL + 4, Ui.DIM);
+        } else {
+            String j = jobs.isEmpty() ? "minecraft:none" : jobs.get(job);
+            cycler(g, mx, my, rx, y + R_JOB, jobW(), pretty(j), jobIcon(j));
+            cycler(g, mx, my, rx + jobW() + 4, y + R_JOB, rw - jobW() - 4, biomes.isEmpty() ? "?" : pretty(biomes.get(biome)), null);
+            g.text("Level", rx, y + R_LVL + 4, Ui.TEXT);
+            for (int i = 0; i < 5; i++) {
+                int bx = rx + 34 + i * 22;
+                Ui.selButton(g, String.valueOf(i + 1), bx, y + R_LVL, 20, 16, Ui.in(mx, my, bx, y + R_LVL, 20, 16), level == i + 1);
+            }
+            g.text(LEVELS[level - 1], rx + 34 + 5 * 22 + 4, y + R_LVL + 4, Ui.DIM);
+        }
+        chip(g, "No AI", noAi, rx, y + R_OPT1, hw, mx, my);
+        chip(g, "Invincible", invul, rx + hw + 4, y + R_OPT1, hw, mx, my);
+        chip(g, "Silent", silent, rx, y + R_OPT2, hw, mx, my);
+        chip(g, "Fixed Prices", fixed, rx + hw + 4, y + R_OPT2, hw, mx, my);
+        name.draw(g, rx, y + R_NAME, rw, 14, "Custom name (optional)");
+
+        // ---- trades ----
+        g.text("Trades (" + trades.size() + ")", rx, y + R_TR + 3, Ui.TEXT);
+        Ui.button(g, "+ Add", rx + rw - 86, y + R_TR, 44, 13, Ui.in(mx, my, rx + rw - 86, y + R_TR, 44, 13), false);
+        Ui.button(g, "Clear", rx + rw - 38, y + R_TR, 38, 13, Ui.in(mx, my, rx + rw - 38, y + R_TR, 38, 13), true);
+        trScroll = Math.max(0, Math.min(trScroll, Math.max(0, trades.size() - TR_ROWS)));
+        if (trades.isEmpty()) {
+            int ty = y + R_LIST + 4;
+            for (String l : Ui.wrap(g, "No custom trades: the villager gets the normal ones for its job. Add a trade, or click an item on the left.", rw - 4)) {
+                g.text(l, rx + 2, ty, Ui.DIM);
+                ty += 11;
+            }
+        }
+        for (int i = 0; i < TR_ROWS && trScroll + i < trades.size(); i++) {
+            Trade t = trades.get(trScroll + i);
+            int ry = y + R_LIST + i * (TR_H + 1);
+            boolean hov = Ui.in(mx, my, rx, ry, rw - 18, TR_H);
+            Ui.rr(g, rx, ry, rw, TR_H, t == cur ? Ui.SEL : hov ? Ui.HOVER : Ui.BTN);
+            stack(g, t.a, rx + 2, ry + 1);
+            if (!t.b.isEmpty()) { g.text("+", rx + 21, ry + 5, Ui.DIM); stack(g, t.b, rx + 28, ry + 1); }
+            g.text("=", rx + 49, ry + 5, Ui.DIM);
+            if (t.s.isEmpty()) g.text("?", rx + 62, ry + 5, Ui.RED);
+            else stack(g, t.s, rx + 58, ry + 1);
+            String info = t.s.isEmpty() ? "pick a result" : t.s.getHoverName().getString();
+            g.text(Ui.fit(g, info, rw - 132), rx + 80, ry + 5, Ui.TEXT);
+            String u = usesText(t.uses);
+            g.text(u, rx + rw - 22 - g.width(u), ry + 5, Ui.DIM);
+            Ui.button(g, "x", rx + rw - 16, ry + 2, 14, 14, Ui.in(mx, my, rx + rw - 16, ry + 2, 14, 14), true);
+        }
+
+        // ---- editor for the selected trade ----
+        if (cur == null) {
+            g.text("Select a trade to edit it.", rx, y + R_ED + 5, Ui.DIM);
+        } else {
+            for (int i = 0; i < 3; i++) {
+                int bx = boxX(i);
+                Ui.rr(g, bx - 1, y + R_ED - 1, 20, 20, i == box ? Ui.ACCENT : Ui.DARK);
+                Ui.rr(g, bx, y + R_ED, 18, 18, Ui.in(mx, my, bx, y + R_ED, 18, 18) ? Ui.HOVER : Ui.DARK);
+                stack(g, get(cur, i), bx + 1, y + R_ED + 1);
+            }
+            g.text("+", boxX(0) + 22, y + R_ED + 5, Ui.DIM);
+            g.text("=", boxX(1) + 22, y + R_ED + 5, Ui.DIM);
+            int cx = rx + 92;
+            ItemStack st = get(cur, box);
+            Ui.button(g, "-", cx, y + R_ED + 2, 14, 14, Ui.in(mx, my, cx, y + R_ED + 2, 14, 14), false);
+            Ui.center(g, st.isEmpty() ? "-" : String.valueOf(st.getCount()), cx + 14, y + R_ED + 5, 22, Ui.TEXT);
+            Ui.button(g, "+", cx + 36, y + R_ED + 2, 14, 14, Ui.in(mx, my, cx + 36, y + R_ED + 2, 14, 14), false);
+            Ui.button(g, "Hand", rx + rw - 80, y + R_ED + 2, 40, 14, Ui.in(mx, my, rx + rw - 80, y + R_ED + 2, 40, 14), false);
+            Ui.button(g, "Empty", rx + rw - 38, y + R_ED + 2, 38, 14, Ui.in(mx, my, rx + rw - 38, y + R_ED + 2, 38, 14), false);
+
+            Ui.button(g, "Uses: " + (USES[cur.uses] == Integer.MAX_VALUE ? "No limit" : USES[cur.uses]), rx, y + R_ED2, 86, 14,
+                    Ui.in(mx, my, rx, y + R_ED2, 86, 14), false);
+            String[] boxes = { "Editing: Cost", "Editing: Cost 2 (optional)", "Editing: Result" };
+            g.text(Ui.fit(g, boxes[box], rw - 92), rx + 92, y + R_ED2 + 3, Ui.DIM);
+        }
+        boolean noted = note != null && System.currentTimeMillis() < noteUntil;
+        String hint = noted ? note : cur == null ? "" : "Hand = the item you hold, with all its data";
+        g.text(Ui.fit(g, hint, rw), rx, y + R_ED2 + 19, noted ? Ui.TEXT : Ui.DIM);
+
+        // ---- summon ----
+        String sum = trader ? "Summon Wandering Trader" : "Summon " + (jobs.isEmpty() ? "Villager" : pretty(jobs.get(job)));
+        Ui.button(g, sum, rx, y + h - 18, rw, 18, Ui.in(mx, my, rx, y + h - 18, rw, 18), false);
+    }
+
+    private static String usesText(int i) { return USES[i] == Integer.MAX_VALUE ? "∞" : USES[i] + "x"; }
+
+    private static void stack(Gfx g, ItemStack st, int sx, int sy) {
+        if (st.isEmpty()) return;
+        g.item(st, sx, sy);
+        g.decorations(st, sx, sy);
+    }
+
+    /** [<] icon + name [>]: click the middle or > for the next value, < (or right click) for the previous one. */
+    private static void cycler(Gfx g, int mx, int my, int cx, int cy, int cw, String label, ItemStack icon) {
+        Ui.button(g, "<", cx, cy, 14, 16, Ui.in(mx, my, cx, cy, 14, 16), false);
+        Ui.rr(g, cx + 16, cy, cw - 32, 16, Ui.in(mx, my, cx + 16, cy, cw - 32, 16) ? Ui.HOVER : Ui.BTN);
+        int tx = cx + 20;
+        if (icon != null) { g.itemScaled(icon, cx + 18, cy + 2, 0.75f); tx = cx + 32; }
+        g.text(Ui.fit(g, label, cx + cw - 18 - tx), tx, cy + 4, Ui.TEXT);
+        Ui.button(g, ">", cx + cw - 14, cy, 14, 16, Ui.in(mx, my, cx + cw - 14, cy, 14, 16), false);
+    }
+
+    /** -1 = previous, 1 = next, 0 = not clicked. */
+    private static int cycled(int mx, int my, int btn, int cx, int cy, int cw) {
+        if (Ui.in(mx, my, cx, cy, 14, 16)) return -1;
+        if (Ui.in(mx, my, cx + cw - 14, cy, 14, 16)) return 1;
+        if (Ui.in(mx, my, cx + 16, cy, cw - 32, 16)) return btn == 1 ? -1 : 1;
+        return 0;
+    }
+
+    private static void chip(Gfx g, String label, boolean on, int cx, int cy, int cw, int mx, int my) {
+        Ui.rr(g, cx, cy, cw, 16, Ui.in(mx, my, cx, cy, cw, 16) ? Ui.HOVER : Ui.BTN);
+        g.text(Ui.fit(g, label, cw - 38), cx + 4, cy + 4, Ui.TEXT);
+        Ui.pill(g, cx + cw - 32, cy + 2, on);
+    }
+
+    // ------------------------------------------------------------------ input
+    @Override
+    public boolean click(int mx, int my, int btn) {
+        if (Ui.in(mx, my, x, y, LW, 16)) { search.focused = true; name.focused = false; return true; }
+        int rx = rx(), rw = rw(), hw = hw();
+        if (Ui.in(mx, my, rx, y + R_NAME, rw, 14)) { name.focused = true; search.focused = false; return true; }
+
+        int rows = listRows();
+        for (int i = 0; i < rows && listScroll + i < view.size(); i++)
+            if (Ui.in(mx, my, x, y + 20 + i * ROWH, LW, ROWH - 1)) { pick(view.get(listScroll + i)); return true; }
+
+        if (Ui.in(mx, my, rx, y, hw, 14)) { trader = false; return true; }
+        if (Ui.in(mx, my, rx + hw + 4, y, hw, 14)) { trader = true; return true; }
+        if (!trader) {
+            int d = cycled(mx, my, btn, rx, y + R_JOB, jobW());
+            if (d != 0 && !jobs.isEmpty()) { job = Math.floorMod(job + d, jobs.size()); return true; }
+            d = cycled(mx, my, btn, rx + jobW() + 4, y + R_JOB, rw - jobW() - 4);
+            if (d != 0 && !biomes.isEmpty()) { biome = Math.floorMod(biome + d, biomes.size()); return true; }
+            for (int i = 0; i < 5; i++) if (Ui.in(mx, my, rx + 34 + i * 22, y + R_LVL, 20, 16)) { level = i + 1; return true; }
+        }
+        if (Ui.in(mx, my, rx, y + R_OPT1, hw, 16)) { noAi = !noAi; return true; }
+        if (Ui.in(mx, my, rx + hw + 4, y + R_OPT1, hw, 16)) { invul = !invul; return true; }
+        if (Ui.in(mx, my, rx, y + R_OPT2, hw, 16)) { silent = !silent; return true; }
+        if (Ui.in(mx, my, rx + hw + 4, y + R_OPT2, hw, 16)) { fixed = !fixed; return true; }
+
+        if (Ui.in(mx, my, rx + rw - 86, y + R_TR, 44, 13)) { addTrade(); return true; }
+        if (Ui.in(mx, my, rx + rw - 38, y + R_TR, 38, 13)) { trades.clear(); cur = null; return true; }
+        for (int i = 0; i < TR_ROWS && trScroll + i < trades.size(); i++) {
+            int ry = y + R_LIST + i * (TR_H + 1);
+            Trade t = trades.get(trScroll + i);
+            if (Ui.in(mx, my, rx + rw - 16, ry + 2, 14, 14)) {
+                trades.remove(t);
+                if (cur == t) cur = trades.isEmpty() ? null : trades.get(Math.min(trScroll + i, trades.size() - 1));
+                return true;
+            }
+            if (Ui.in(mx, my, rx, ry, rw - 18, TR_H)) { cur = t; return true; }
+        }
+
+        if (cur != null) {
+            for (int i = 0; i < 3; i++) if (Ui.in(mx, my, boxX(i), y + R_ED, 18, 18)) { box = i; return true; }
+            int cx = rx + 92, step = btn == 1 ? 8 : 1;
+            if (Ui.in(mx, my, cx, y + R_ED + 2, 14, 14)) { count(-step); return true; }
+            if (Ui.in(mx, my, cx + 36, y + R_ED + 2, 14, 14)) { count(step); return true; }
+            if (Ui.in(mx, my, rx + rw - 80, y + R_ED + 2, 40, 14)) { fromHand(); return true; }
+            if (Ui.in(mx, my, rx + rw - 38, y + R_ED + 2, 38, 14)) { set(cur, box, ItemStack.EMPTY, false); return true; }
+            if (Ui.in(mx, my, rx, y + R_ED2, 86, 14)) { cur.uses = Math.floorMod(cur.uses + (btn == 1 ? -1 : 1), USES.length); return true; }
+        }
+        if (Ui.in(mx, my, rx, y + h - 18, rw, 18)) { summon(); return true; }
+        return false;
+    }
+
+    /** Item from the list goes into the selected box (a new trade is made when there is none). */
+    private void pick(ItemsPage.Entry e) {
+        if (cur == null) addTrade();
+        ItemStack old = get(cur, box);
+        int n = old.isEmpty() ? 1 : Math.min(old.getCount(), e.stack().getMaxStackSize());
+        set(cur, box, e.stack().copyWithCount(n), false);
+        if (box == 0 && cur.s.isEmpty()) box = 2;   // cost picked: go on with the result
+    }
+
+    private void fromHand() {
+        ItemStack held = Compat.heldItem();
+        if (held.isEmpty()) { note("Hold the item in your main hand first."); return; }
+        set(cur, box, held.copy(), true);
+        note("Took " + held.getHoverName().getString() + " from your hand.");
+    }
+
+    private void count(int d) {
+        ItemStack st = get(cur, box);
+        if (st.isEmpty()) return;
+        st.setCount(Math.max(1, Math.min(st.getMaxStackSize(), st.getCount() + d)));
+    }
+
+    // ------------------------------------------------------------------ commands
+    private static String item(ItemStack st, boolean custom) {
+        if (custom) return Compat.itemSnbt(st);
+        return "{id:\"" + BuiltInRegistries.ITEM.getKey(st.getItem()) + "\",count:" + st.getCount() + "}";
+    }
+
+    private String offer(Trade t) {
+        StringBuilder sb = new StringBuilder("{buy:").append(item(t.a, t.customA));
+        if (!t.b.isEmpty()) sb.append(",buyB:").append(item(t.b, t.customB));
+        sb.append(",sell:").append(item(t.s, t.customS));
+        // xp:0 = the villager never levels up, so it never adds its normal trades on top of yours
+        sb.append(",maxUses:").append(USES[t.uses]).append(",uses:0,xp:0,priceMultiplier:").append(fixed ? "0.0f" : "0.05f").append('}');
+        return sb.toString();
+    }
+
+    private void summon() {
+        init();
+        List<Trade> ok = new ArrayList<>();
+        for (Trade t : trades) if (!t.a.isEmpty() && !t.s.isEmpty()) ok.add(t);
+        String self = "@e[tag=" + TAG + ",limit=1,sort=nearest]";
+
+        List<String> base = new ArrayList<>();
+        base.add("Tags:[\"" + TAG + "\"]");
+        if (trader) base.add("DespawnDelay:0");
+        else if (!jobs.isEmpty()) {
+            base.add("VillagerData:{profession:\"" + jobs.get(job) + "\",level:" + level + ",type:\"" + biomes.get(biome) + "\"}");
+            base.add("Xp:1");   // a level 1 villager with 0 xp and no job block would lose its job
+        }
+        if (!ok.isEmpty()) base.add("Offers:{Recipes:[]}");
+        List<String> extra = new ArrayList<>();
+        if (noAi) extra.add("NoAI:1b");
+        if (invul) extra.add("Invulnerable:1b");
+        if (silent) extra.add("Silent:1b");
+        String n = name.text.replaceAll("[\"'\\\\]", "").trim();
+        if (!n.isEmpty()) { extra.add(Compat.customName(n)); extra.add("CustomNameVisible:1b"); }
+
+        List<String> cmds = new ArrayList<>();
+        cmds.add("execute at @s rotated ~ 0 positioned ^ ^ ^3 run summon minecraft:" + (trader ? "wandering_trader" : "villager")
+                + " ~ ~ ~ {" + String.join(",", base) + "}");
+        if (!extra.isEmpty()) cmds.add("data merge entity " + self + " {" + String.join(",", extra) + "}");
+        int skipped = 0;
+        for (Trade t : ok) {
+            String c = "data modify entity " + self + " Offers.Recipes append value " + offer(t);
+            if (Access.mode != Access.Mode.LOCAL && c.length() > 255) { skipped++; continue; }   // over the server's command limit
+            cmds.add(c);
+        }
+        cmds.add("tag @e[tag=" + TAG + "] remove " + TAG);
+        Cmd.run(cmds.toArray(new String[0]));
+
+        int bad = trades.size() - ok.size();
+        if (skipped > 0) note(skipped + " trade(s) too long for a server, left out.");
+        else if (bad > 0) note(bad + " unfinished trade(s) left out.");
+        else note(ok.isEmpty() ? "Summoned with normal trades." : "Summoned with " + ok.size() + " custom trade(s).");
+    }
+
+    @Override
+    public boolean scroll(int mx, int my, double dy) {
+        int d = (int) -Math.signum(dy);
+        if (mx < x + LW + 4) listScroll += d * 3;
+        else if (my >= y + R_LIST && my < y + R_LIST + TR_ROWS * (TR_H + 1)) trScroll += d;
+        else if (cur != null && my >= y + R_ED && my < y + R_ED + 18) count(-d);
+        return true;
+    }
+
+    @Override public boolean typed(char c) { return search.focused ? search.typed(c) : name.typed(c); }
+    @Override public boolean key(int key, int scan, int mods) { return search.focused ? search.key(key, mods) : name.key(key, mods); }
+}

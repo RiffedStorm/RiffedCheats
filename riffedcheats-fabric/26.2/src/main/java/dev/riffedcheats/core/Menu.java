@@ -223,6 +223,7 @@ public final class Menu {
 
         cat("Mobs",
             page("Summon", new MobsPage()),
+            page("Villagers", new VillagerPage()),
             tab("Cleanup",
                 cmd("Kill Mobs Within 64m (not players/items)", "kill @e[type=!minecraft:player,type=!minecraft:item,distance=..64]"),
                 cmd("Remove Dropped Items Within 64m", "kill @e[type=minecraft:item,distance=..64]"),

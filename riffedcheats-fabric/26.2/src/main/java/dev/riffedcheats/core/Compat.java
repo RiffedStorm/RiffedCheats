@@ -423,4 +423,11 @@ public final class Compat {
     /** Modifier keys held right now (multi-select in the inventory editor). */
     public static boolean shift() { return Minecraft.getInstance().hasShiftDown(); }
     public static boolean ctrl() { return Minecraft.getInstance().hasControlDown(); }
+
+    /** The item in your main hand (empty if none). */
+    public static ItemStack heldItem() { return mc().player == null ? ItemStack.EMPTY : mc().player.getMainHandItem(); }
+    /** Full SNBT of a stack ({id, count, components}), as used in commands. */
+    public static String itemSnbt(ItemStack st) {
+        return ItemStack.CODEC.encodeStart(mc().level.registryAccess().createSerializationContext(NbtOps.INSTANCE), st).getOrThrow().toString();
+    }
 }

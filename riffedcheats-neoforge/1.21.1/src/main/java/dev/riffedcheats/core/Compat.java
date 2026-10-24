@@ -332,4 +332,9 @@ public final class Compat {
     /** Modifier keys held right now (multi-select in the inventory editor). */
     public static boolean shift() { return Screen.hasShiftDown(); }
     public static boolean ctrl() { return Screen.hasControlDown(); }
+
+    /** The item in your main hand (empty if none). */
+    public static ItemStack heldItem() { return mc().player == null ? ItemStack.EMPTY : mc().player.getMainHandItem(); }
+    /** Full SNBT of a stack ({id, count, components}), as used in commands. */
+    public static String itemSnbt(ItemStack st) { return st.save(mc().level.registryAccess()).toString(); }
 }
