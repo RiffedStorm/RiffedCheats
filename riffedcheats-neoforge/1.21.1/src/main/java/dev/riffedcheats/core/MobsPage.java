@@ -149,7 +149,7 @@ public final class MobsPage implements Page {
         int gy = y + h - 40;
         String sum = selected == null ? "Select a mob" : "Summon x" + count;
         Ui.button(g, sum, rx, gy, rw, 20, Ui.in(mx, my, rx, gy, rw, 20), false);
-        Ui.button(g, "Kill This Type (64m)", rx, y + h - 18, hw, 18, Ui.in(mx, my, rx, y + h - 18, hw, 18), true);
+        Ui.button(g, "Kill Type (64m)", rx, y + h - 18, hw, 18, Ui.in(mx, my, rx, y + h - 18, hw, 18), true);
         Ui.button(g, "Kill All Mobs (64m)", rx + hw + 4, y + h - 18, hw, 18, Ui.in(mx, my, rx + hw + 4, y + h - 18, hw, 18), true);
     }
 

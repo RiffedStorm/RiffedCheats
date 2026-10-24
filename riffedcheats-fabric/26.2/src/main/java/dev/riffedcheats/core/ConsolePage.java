@@ -28,16 +28,16 @@ public final class ConsolePage implements Page {
 
     @Override public boolean wantsText() { return true; }
 
-    private int clrLogX() { return x + w - 132; }
-    private int clrHistX() { return x + w - 66; }
+    private int clrLogX() { return x + w - 140; }
+    private int clrHistX() { return x + w - 80; }
 
     @Override
     public void render(Gfx g, int mx, int my, int x, int y, int w, int h) {
         this.x = x; this.y = y; this.w = w; this.h = h;
         if (!field.text.equals(lastAsked)) ask();
         g.text("Enter: run  Tab: complete  Up/Down: history", x, y + 1, Ui.DIM);
-        Ui.button(g, "Clear Log", clrLogX(), y - 2, 62, 12, Ui.in(mx, my, clrLogX(), y - 2, 62, 12), false);
-        Ui.button(g, "Clear History", clrHistX(), y - 2, 66, 12, Ui.in(mx, my, clrHistX(), y - 2, 66, 12), false);
+        Ui.button(g, "Clear Log", clrLogX(), y - 2, 56, 12, Ui.in(mx, my, clrLogX(), y - 2, 56, 12), false);
+        Ui.button(g, "Clear History", clrHistX(), y - 2, 80, 12, Ui.in(mx, my, clrHistX(), y - 2, 80, 12), false);
         field.draw(g, x, y + 14, w, 18, "e.g. give @s diamond 64");
 
         List<String> s = sugg;
@@ -120,8 +120,8 @@ public final class ConsolePage implements Page {
     }
 
     @Override public boolean click(int mx, int my, int btn) {
-        if (Ui.in(mx, my, clrLogX(), y - 2, 62, 12)) { synchronized (ConsolePage.class) { LOG.clear(); } return true; }
-        if (Ui.in(mx, my, clrHistX(), y - 2, 66, 12)) { history.clear(); histPos = -1; return true; }
+        if (Ui.in(mx, my, clrLogX(), y - 2, 56, 12)) { synchronized (ConsolePage.class) { LOG.clear(); } return true; }
+        if (Ui.in(mx, my, clrHistX(), y - 2, 80, 12)) { history.clear(); histPos = -1; return true; }
         int sy = y + 36;
         List<String> s = sugg;
         for (int i = 0; i < Math.min(7, s.size()); i++)
