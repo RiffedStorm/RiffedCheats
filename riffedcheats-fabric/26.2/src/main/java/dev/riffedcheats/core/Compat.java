@@ -450,4 +450,29 @@ public final class Compat {
         if (t.isPresent() && p.isPresent()) v.setVillagerData(new net.minecraft.world.entity.npc.villager.VillagerData(t.get(), p.get(), level));
         return v;
     }
+
+    /** A client-only entity of this type (for previews); null when there is no world or it cannot be made. */
+    public static Entity createEntity(String id) {
+        if (mc().level == null) return null;
+        return net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.parse(id))
+                .map(t -> (Entity) t.create(mc().level, net.minecraft.world.entity.EntitySpawnReason.LOAD)).orElse(null);
+    }
+    /** Applies summon-style NBT ("{...}") to an entity, the same way /summon would. */
+    public static void loadNbt(Entity e, String snbt) throws Exception {
+        var reg = mc().level.registryAccess();
+        var out = net.minecraft.world.level.storage.TagValueOutput.createWithContext(net.minecraft.util.ProblemReporter.DISCARDING, reg);
+        e.saveWithoutId(out);
+        CompoundTag t = out.buildResult();
+        t.merge(TagParser.parseCompoundFully(snbt));
+        e.load(net.minecraft.world.level.storage.TagValueInput.create(net.minecraft.util.ProblemReporter.DISCARDING, reg, t));
+    }
+    /** Sorted ids of a registry (e.g. "minecraft:wolf_variant"); empty if this version does not have it. */
+    public static List<String> registryIds(String registry) {
+        List<String> l = new ArrayList<>();
+        if (mc().level == null) return l;
+        mc().level.registryAccess().lookup(net.minecraft.resources.ResourceKey.createRegistryKey(Identifier.parse(registry)))
+                .ifPresent(r -> { for (Object k : r.keySet()) l.add(k.toString()); });
+        Collections.sort(l);
+        return l;
+    }
 }

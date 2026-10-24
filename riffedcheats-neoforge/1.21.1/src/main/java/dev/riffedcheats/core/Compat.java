@@ -358,4 +358,25 @@ public final class Compat {
                 net.minecraft.core.registries.BuiltInRegistries.VILLAGER_PROFESSION.get(ResourceLocation.parse(profession)), level));
         return v;
     }
+
+    /** A client-only entity of this type (for previews); null when there is no world or it cannot be made. */
+    public static Entity createEntity(String id) {
+        if (mc().level == null) return null;
+        return net.minecraft.world.entity.EntityType.byString(id).map(t -> (Entity) t.create(mc().level)).orElse(null);
+    }
+    /** Applies summon-style NBT ("{...}") to an entity, the same way /summon would. */
+    public static void loadNbt(Entity e, String snbt) throws Exception {
+        CompoundTag t = e.saveWithoutId(new CompoundTag());
+        t.merge(TagParser.parseTag(snbt));
+        e.load(t);
+    }
+    /** Sorted ids of a registry (e.g. "minecraft:wolf_variant"); empty if this version does not have it. */
+    public static List<String> registryIds(String registry) {
+        List<String> l = new ArrayList<>();
+        if (mc().level == null) return l;
+        mc().level.registryAccess().registry(net.minecraft.resources.ResourceKey.createRegistryKey(ResourceLocation.parse(registry)))
+                .ifPresent(r -> { for (Object k : r.keySet()) l.add(k.toString()); });
+        Collections.sort(l);
+        return l;
+    }
 }

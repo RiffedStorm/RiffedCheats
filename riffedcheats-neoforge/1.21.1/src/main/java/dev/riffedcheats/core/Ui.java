@@ -2,6 +2,7 @@ package dev.riffedcheats.core;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.world.item.ItemStack;
 
 public final class Ui {
     public static final int BG = 0xF0101426, PANEL = 0xFF171B34, BTN = 0xFF26305A, SEL = 0xFF3B4C8C,
@@ -74,5 +75,23 @@ public final class Ui {
         }
         if (line.length() > 0) out.add(line.toString());
         return out;
+    }
+
+    /** [<] icon + name [>]: click the middle or > for the next value, < (or right click) for the previous one. */
+    public static void cycler(Gfx g, int mx, int my, int cx, int cy, int cw, String label, ItemStack icon) {
+        button(g, "<", cx, cy, 14, 16, in(mx, my, cx, cy, 14, 16), false);
+        rr(g, cx + 16, cy, cw - 32, 16, in(mx, my, cx + 16, cy, cw - 32, 16) ? HOVER : BTN);
+        int tx = cx + 20;
+        if (icon != null) { g.itemScaled(icon, cx + 18, cy + 2, 0.75f); tx = cx + 32; }
+        label(g, label, tx, cy + 4, cx + cw - 18 - tx, TEXT);
+        button(g, ">", cx + cw - 14, cy, 14, 16, in(mx, my, cx + cw - 14, cy, 14, 16), false);
+    }
+
+    /** -1 = previous, 1 = next, 0 = not clicked. */
+    public static int cycled(int mx, int my, int btn, int cx, int cy, int cw) {
+        if (in(mx, my, cx, cy, 14, 16)) return -1;
+        if (in(mx, my, cx + cw - 14, cy, 14, 16)) return 1;
+        if (in(mx, my, cx + 16, cy, cw - 32, 16)) return btn == 1 ? -1 : 1;
+        return 0;
     }
 }

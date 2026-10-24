@@ -150,8 +150,8 @@ public final class VillagerPage implements Page {
             g.text(Ui.fit(g, "This one never despawns.", rw), rx, y + R_LVL + 4, Ui.DIM);
         } else {
             String j = jobs.isEmpty() ? "minecraft:none" : jobs.get(job);
-            cycler(g, mx, my, rx, y + R_JOB, jobW(), pretty(j), jobIcon(j));
-            cycler(g, mx, my, rx + jobW() + 4, y + R_JOB, rw - jobW() - 4, biomes.isEmpty() ? "?" : pretty(biomes.get(biome)), null);
+            Ui.cycler(g, mx, my, rx, y + R_JOB, jobW(), pretty(j), jobIcon(j));
+            Ui.cycler(g, mx, my, rx + jobW() + 4, y + R_JOB, rw - jobW() - 4, biomes.isEmpty() ? "?" : pretty(biomes.get(biome)), null);
             g.text("Level", rx, y + R_LVL + 4, Ui.TEXT);
             for (int i = 0; i < 5; i++) {
                 int bx = rx + 34 + i * 22;
@@ -330,24 +330,6 @@ public final class VillagerPage implements Page {
         g.decorations(st, sx, sy);
     }
 
-    /** [<] icon + name [>]: click the middle or > for the next value, < (or right click) for the previous one. */
-    private static void cycler(Gfx g, int mx, int my, int cx, int cy, int cw, String label, ItemStack icon) {
-        Ui.button(g, "<", cx, cy, 14, 16, Ui.in(mx, my, cx, cy, 14, 16), false);
-        Ui.rr(g, cx + 16, cy, cw - 32, 16, Ui.in(mx, my, cx + 16, cy, cw - 32, 16) ? Ui.HOVER : Ui.BTN);
-        int tx = cx + 20;
-        if (icon != null) { g.itemScaled(icon, cx + 18, cy + 2, 0.75f); tx = cx + 32; }
-        Ui.label(g, label, tx, cy + 4, cx + cw - 18 - tx, Ui.TEXT);
-        Ui.button(g, ">", cx + cw - 14, cy, 14, 16, Ui.in(mx, my, cx + cw - 14, cy, 14, 16), false);
-    }
-
-    /** -1 = previous, 1 = next, 0 = not clicked. */
-    private static int cycled(int mx, int my, int btn, int cx, int cy, int cw) {
-        if (Ui.in(mx, my, cx, cy, 14, 16)) return -1;
-        if (Ui.in(mx, my, cx + cw - 14, cy, 14, 16)) return 1;
-        if (Ui.in(mx, my, cx + 16, cy, cw - 32, 16)) return btn == 1 ? -1 : 1;
-        return 0;
-    }
-
     private static void chip(Gfx g, String label, boolean on, int cx, int cy, int cw, int mx, int my) {
         Ui.rr(g, cx, cy, cw, 16, Ui.in(mx, my, cx, cy, cw, 16) ? Ui.HOVER : Ui.BTN);
         Ui.label(g, label, cx + 4, cy + 4, cw - 38, Ui.TEXT);
@@ -388,9 +370,9 @@ public final class VillagerPage implements Page {
         if (Ui.in(mx, my, rx, y, hw, 14)) { trader = false; return true; }
         if (Ui.in(mx, my, rx + hw + 4, y, hw, 14)) { trader = true; return true; }
         if (!trader) {
-            int d = cycled(mx, my, btn, rx, y + R_JOB, jobW());
+            int d = Ui.cycled(mx, my, btn, rx, y + R_JOB, jobW());
             if (d != 0 && !jobs.isEmpty()) { job = Math.floorMod(job + d, jobs.size()); return true; }
-            d = cycled(mx, my, btn, rx + jobW() + 4, y + R_JOB, rw - jobW() - 4);
+            d = Ui.cycled(mx, my, btn, rx + jobW() + 4, y + R_JOB, rw - jobW() - 4);
             if (d != 0 && !biomes.isEmpty()) { biome = Math.floorMod(biome + d, biomes.size()); return true; }
             for (int i = 0; i < 5; i++) if (Ui.in(mx, my, rx + 34 + i * 22, y + R_LVL, 20, 16)) { level = i + 1; return true; }
         }
