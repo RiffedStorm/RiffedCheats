@@ -137,7 +137,7 @@ public final class VillagerPage implements Page {
         drawPreview(g, mx, my);
         int tw = (LW - 4) / 2;
         Ui.selButton(g, "Items", x, y + TABS, tw, 14, Ui.in(mx, my, x, y + TABS, tw, 14), !enchMode);
-        Ui.selButton(g, "Enchantments", x + tw + 4, y + TABS, tw, 14, Ui.in(mx, my, x + tw + 4, y + TABS, tw, 14), enchMode);
+        Ui.selButton(g, "Enchants", x + tw + 4, y + TABS, tw, 14, Ui.in(mx, my, x + tw + 4, y + TABS, tw, 14), enchMode);
         if (enchMode) drawEnchants(g, mx, my);
         else drawItems(g, mx, my);
 
@@ -189,7 +189,7 @@ public final class VillagerPage implements Page {
             if (t.s.isEmpty()) g.text("?", rx + 62, ry + 5, Ui.RED);
             else stack(g, t.s, rx + 58, ry + 1);
             String info = t.s.isEmpty() ? "pick a result" : t.s.getHoverName().getString();
-            g.text(Ui.fit(g, info, rw - 132), rx + 80, ry + 5, Ui.TEXT);
+            Ui.label(g, info, rx + 80, ry + 5, rw - 132, Ui.TEXT);
             String u = usesText(t.uses);
             g.text(u, rx + rw - 22 - g.width(u), ry + 5, Ui.DIM);
             Ui.button(g, "x", rx + rw - 16, ry + 2, 14, 14, Ui.in(mx, my, rx + rw - 16, ry + 2, 14, 14), true);
@@ -239,7 +239,7 @@ public final class VillagerPage implements Page {
             int ry = y + LIST + i * ROWH;
             Ui.rr(g, x, ry, LW, ROWH - 1, Ui.in(mx, my, x, ry, LW, ROWH - 1) ? Ui.HOVER : Ui.BTN);
             g.item(e.stack(), x + 1, ry - 1);
-            g.text(Ui.fit(g, e.name(), LW - 24), x + 20, ry + 4, Ui.TEXT);
+            Ui.label(g, e.name(), x + 20, ry + 4, LW - 24, Ui.TEXT);
         }
         g.text(Ui.fit(g, "Click an item: puts it in the selected box", LW), x, y + h - 9, Ui.DIM);
     }
@@ -275,14 +275,14 @@ public final class VillagerPage implements Page {
             String id = ids.get(enchScroll + i);
             int ry = y + LIST + i * ROWH, lv = has.getOrDefault(id, 0);
             Ui.rr(g, x, ry, LW, ROWH - 1, lv > 0 ? Ui.SEL : Ui.BTN);
-            g.text(Ui.fit(g, pretty(id), LW - 86), x + 4, ry + 4, Ui.TEXT);
-            Ui.button(g, "-", x + LW - 78, ry, 14, ROWH - 1, Ui.in(mx, my, x + LW - 78, ry, 14, ROWH - 1), false);
-            Ui.center(g, String.valueOf(lv), x + LW - 64, ry + 4, 20, Ui.TEXT);
-            Ui.button(g, "+", x + LW - 44, ry, 14, ROWH - 1, Ui.in(mx, my, x + LW - 44, ry, 14, ROWH - 1), false);
-            Ui.button(g, "Max", x + LW - 28, ry, 28, ROWH - 1, Ui.in(mx, my, x + LW - 28, ry, 28, ROWH - 1), false);
+            Ui.label(g, pretty(id), x + 4, ry + 4, LW - 72, Ui.TEXT);
+            Ui.button(g, "-", x + LW - 66, ry, 12, ROWH - 1, Ui.in(mx, my, x + LW - 66, ry, 12, ROWH - 1), false);
+            Ui.center(g, String.valueOf(lv), x + LW - 54, ry + 4, 16, Ui.TEXT);
+            Ui.button(g, "+", x + LW - 38, ry, 12, ROWH - 1, Ui.in(mx, my, x + LW - 38, ry, 12, ROWH - 1), false);
+            Ui.button(g, "Max", x + LW - 24, ry, 24, ROWH - 1, Ui.in(mx, my, x + LW - 24, ry, 24, ROWH - 1), false);
         }
-        String what = cur == null ? "" : new String[] { "Cost", "Cost 2", "Result" }[box] + (st.isEmpty() ? "" : ": " + st.getHoverName().getString());
-        g.text(Ui.fit(g, what.isEmpty() ? "Enchants the selected box" : "Enchanting " + what, LW), x, y + h - 9, Ui.DIM);
+        String what = cur == null ? "Enchants the selected box" : new String[] { "Cost", "Cost 2", "Result" }[box] + (st.isEmpty() ? "" : ": " + st.getHoverName().getString());
+        Ui.label(g, what, x, y + h - 9, LW, Ui.DIM);
     }
 
     /** Sets one enchantment level on the selected box's item (0 removes it). A plain book becomes an enchanted book. */
@@ -310,13 +310,13 @@ public final class VillagerPage implements Page {
         }
         int ty = y + 6;
         String n = name.text.trim();
-        if (!n.isEmpty()) { g.text(Ui.fit(g, n, 72), x + 5, ty, Ui.TEXT); ty += 14; }
+        if (!n.isEmpty()) { Ui.label(g, n, x + 5, ty, 72, Ui.TEXT); ty += 14; }
         if (trader) {
             g.text("Wandering", x + 5, ty, Ui.TEXT);
             g.text("Trader", x + 5, ty + 11, Ui.TEXT);
         } else {
-            g.text(Ui.fit(g, pretty(j), 72), x + 5, ty, Ui.TEXT);
-            g.text(Ui.fit(g, pretty(b), 72), x + 5, ty + 11, Ui.DIM);
+            Ui.label(g, pretty(j), x + 5, ty, 72, Ui.TEXT);
+            Ui.label(g, pretty(b), x + 5, ty + 11, 72, Ui.DIM);
             g.text(Ui.fit(g, LEVELS[level - 1], 72), x + 5, ty + 22, Ui.DIM);
         }
         g.text("Preview", x + 5, y + PV - 12, Ui.DIM);
@@ -336,7 +336,7 @@ public final class VillagerPage implements Page {
         Ui.rr(g, cx + 16, cy, cw - 32, 16, Ui.in(mx, my, cx + 16, cy, cw - 32, 16) ? Ui.HOVER : Ui.BTN);
         int tx = cx + 20;
         if (icon != null) { g.itemScaled(icon, cx + 18, cy + 2, 0.75f); tx = cx + 32; }
-        g.text(Ui.fit(g, label, cx + cw - 18 - tx), tx, cy + 4, Ui.TEXT);
+        Ui.label(g, label, tx, cy + 4, cx + cw - 18 - tx, Ui.TEXT);
         Ui.button(g, ">", cx + cw - 14, cy, 14, 16, Ui.in(mx, my, cx + cw - 14, cy, 14, 16), false);
     }
 
@@ -350,7 +350,7 @@ public final class VillagerPage implements Page {
 
     private static void chip(Gfx g, String label, boolean on, int cx, int cy, int cw, int mx, int my) {
         Ui.rr(g, cx, cy, cw, 16, Ui.in(mx, my, cx, cy, cw, 16) ? Ui.HOVER : Ui.BTN);
-        g.text(Ui.fit(g, label, cw - 38), cx + 4, cy + 4, Ui.TEXT);
+        Ui.label(g, label, cx + 4, cy + 4, cw - 38, Ui.TEXT);
         Ui.pill(g, cx + cw - 32, cy + 2, on);
     }
 
@@ -375,9 +375,9 @@ public final class VillagerPage implements Page {
                 String id = ids.get(enchScroll + i);
                 int ry = y + LIST + i * ROWH, lv = has.getOrDefault(id, 0);
                 int cap = Menu.OVERLEVEL.on ? 255 : Compat.enchantMax(id), d = btn == 1 && Menu.OVERLEVEL.on ? 10 : 1;
-                if (Ui.in(mx, my, x + LW - 78, ry, 14, ROWH - 1)) { enchant(id, Math.max(0, lv - d)); return true; }
-                if (Ui.in(mx, my, x + LW - 44, ry, 14, ROWH - 1)) { enchant(id, Math.min(Math.max(cap, lv), lv + d)); return true; }
-                if (Ui.in(mx, my, x + LW - 28, ry, 28, ROWH - 1)) { enchant(id, Compat.enchantMax(id)); return true; }
+                if (Ui.in(mx, my, x + LW - 66, ry, 12, ROWH - 1)) { enchant(id, Math.max(0, lv - d)); return true; }
+                if (Ui.in(mx, my, x + LW - 38, ry, 12, ROWH - 1)) { enchant(id, Math.min(Math.max(cap, lv), lv + d)); return true; }
+                if (Ui.in(mx, my, x + LW - 24, ry, 24, ROWH - 1)) { enchant(id, Compat.enchantMax(id)); return true; }
             }
         } else {
             if (Ui.in(mx, my, x, y + SEARCH, LW, 16)) { search.focused = true; name.focused = false; return true; }

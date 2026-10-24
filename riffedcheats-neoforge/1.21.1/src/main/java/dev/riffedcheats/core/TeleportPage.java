@@ -64,7 +64,7 @@ public final class TeleportPage implements Page {
             Ui.rr(g, x, ry, w, ROWH - 1, Ui.in(mx, my, x, ry, w, ROWH - 1) ? Ui.HOVER : Ui.BTN);
             String c = l.coords();
             int cxr = goX() - 8 - g.width(c);
-            g.text(Ui.fit(g, l.name(), cxr - x - 14), x + 5, ry + 5, Ui.TEXT);
+            Ui.label(g, l.name(), x + 5, ry + 5, cxr - x - 14, Ui.TEXT);
             g.text(c, cxr, ry + 5, Ui.DIM);
             Ui.button(g, "Go", goX(), ry, BTN, ROWH - 1, Ui.in(mx, my, goX(), ry, BTN, ROWH - 1), false);
             Ui.button(g, "Rename", renX(), ry, BTN, ROWH - 1, Ui.in(mx, my, renX(), ry, BTN, ROWH - 1), false);

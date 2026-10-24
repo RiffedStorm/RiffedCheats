@@ -25,6 +25,18 @@ public final class Ui {
         return s + "..";
     }
 
+    /** Text that shrinks (down to 70%) to fit maxW instead of being cut; only very long text still gets "..". */
+    public static void label(Gfx g, String s, int x, int y, int maxW, int color) {
+        int tw = g.width(s);
+        if (tw <= maxW) { g.text(s, x, y, color); return; }
+        float sc = Math.max(0.7f, (float) maxW / tw);
+        g.push();
+        g.translate(x, y + (1 - sc) * 4);   // keep it vertically centered on the normal line
+        g.scale(sc);
+        g.text(fit(g, s, (int) (maxW / sc)), 0, 0, color);
+        g.pop();
+    }
+
     public static void center(Gfx g, String s, int x, int y, int w, int color) {
         g.text(s, x + (w - g.width(s)) / 2, y, color);
     }

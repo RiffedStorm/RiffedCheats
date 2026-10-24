@@ -113,7 +113,7 @@ public final class ItemsPage implements Page {
             if (hov) hovered = e;
             Ui.rr(g, x, ry, LW, ROWH - 1, e == selected ? Ui.SEL : hov ? Ui.HOVER : Ui.BTN);
             g.item(e.stack(), x + 1, ry);
-            g.text(Ui.fit(g, e.name(), LW - 24), x + 20, ry + 5, Ui.TEXT);
+            Ui.label(g, e.name(), x + 20, ry + 5, LW - 24, Ui.TEXT);
         }
         bar.draw(g, x + LW + 2, y + 20, rows * ROWH - 1, view.size(), rows, listScroll, mx, my);
         g.text(view.size() + " items", x + 2, y + h - 9, Ui.DIM);
@@ -160,7 +160,7 @@ public final class ItemsPage implements Page {
             int ry = y + LIST + i * 16;
             int lv = ench.getOrDefault(id, 0);
             Ui.rr(g, rx, ry, rw, 15, lv > 0 ? Ui.SEL : Ui.BTN);
-            g.text(Ui.fit(g, pretty(id), rw - 88), rx + 4, ry + 4, Ui.TEXT);
+            Ui.label(g, pretty(id), rx + 4, ry + 4, rw - 88, Ui.TEXT);
             Ui.button(g, "-", rx + rw - 80, ry, 14, 15, Ui.in(mx, my, rx + rw - 80, ry, 14, 15), false);
             Ui.center(g, String.valueOf(lv), rx + rw - 66, ry + 4, 22, Ui.TEXT);
             Ui.button(g, "+", rx + rw - 44, ry, 14, 15, Ui.in(mx, my, rx + rw - 44, ry, 14, 15), false);
@@ -178,7 +178,7 @@ public final class ItemsPage implements Page {
 
     private void chip(Gfx g, String label, boolean on, int cx, int cy, int cw, boolean hov) {
         Ui.rr(g, cx, cy, cw, 16, hov ? Ui.HOVER : Ui.BTN);
-        g.text(Ui.fit(g, label, cw - 40), cx + 4, cy + 4, Ui.TEXT);
+        Ui.label(g, label, cx + 4, cy + 4, cw - 40, Ui.TEXT);
         Ui.pill(g, cx + cw - 32, cy + 2, on);
     }
 

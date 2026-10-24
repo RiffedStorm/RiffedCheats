@@ -235,7 +235,7 @@ public final class InventoryPage implements Page {
             int ry = y + LIST + i * ROWH;
             Ui.rr(g, x, ry, LW, ROWH - 1, Ui.in(mx, my, x, ry, LW, ROWH - 1) ? Ui.HOVER : Ui.BTN);
             g.item(e.stack(), x + 1, ry - 1);
-            g.text(Ui.fit(g, e.name(), LW - 24), x + 20, ry + 4, Ui.TEXT);
+            Ui.label(g, e.name(), x + 20, ry + 4, LW - 24, Ui.TEXT);
         }
 
         // ---- right: selected slot ----
@@ -284,7 +284,7 @@ public final class InventoryPage implements Page {
             String id = ids.get(enchScroll + i);
             int ry = top() + EN + i * 16, lv = cur.getOrDefault(id, 0);
             Ui.rr(g, rx, ry, rw, 15, lv > 0 ? Ui.SEL : Ui.BTN);
-            g.text(Ui.fit(g, pretty(id), rw - 88), rx + 4, ry + 4, Ui.TEXT);
+            Ui.label(g, pretty(id), rx + 4, ry + 4, rw - 88, Ui.TEXT);
             Ui.button(g, "-", rx + rw - 80, ry, 14, 15, Ui.in(mx, my, rx + rw - 80, ry, 14, 15), false);
             Ui.center(g, String.valueOf(lv), rx + rw - 66, ry + 4, 22, Ui.TEXT);
             Ui.button(g, "+", rx + rw - 44, ry, 14, 15, Ui.in(mx, my, rx + rw - 44, ry, 14, 15), false);
