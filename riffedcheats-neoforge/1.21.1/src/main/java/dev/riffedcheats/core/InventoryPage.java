@@ -17,7 +17,7 @@ import net.minecraft.world.item.ItemStack;
  * unbreakable, or edit its enchantments. Everything is done with /item, so it works on servers too (OP).
  */
 public final class InventoryPage implements Page {
-    private static final int S = 18, GX = 22, GY = 16, LW = 186, RX0 = 194, LIST = 144, ROWH = 16, EN = 116;
+    private static final int S = 18, GX = 22, GY = 16, LW = 186, RX0 = 194, LIST = 144, ROWH = 16, EN = 136;
     private static final int[] SLOTS;   // drawing / hit-test order
     static {
         SLOTS = new int[41];
@@ -197,13 +197,13 @@ public final class InventoryPage implements Page {
             Ui.selButton(g, String.valueOf(PRESETS[i]), presetX(i), cy, 20, 14, Ui.in(mx, my, presetX(i), cy, 20, 14), count == PRESETS[i]);
         Ui.button(g, "Set", rx + 158, cy, rw - 158, 14, Ui.in(mx, my, rx + 158, cy, rw - 158, 14), false);
 
-        int ay = top() + 76, aw = (rw - 8) / 3;
+        int ay = top() + 76, aw = (rw - 4) / 2;
         Ui.button(g, "Remove", rx, ay, aw, 16, Ui.in(mx, my, rx, ay, aw, 16), true);
         Ui.button(g, "Repair", rx + aw + 4, ay, aw, 16, Ui.in(mx, my, rx + aw + 4, ay, aw, 16), false);
-        Ui.button(g, "Unbreakable", rx + 2 * (aw + 4), ay, aw, 16, Ui.in(mx, my, rx + 2 * (aw + 4), ay, aw, 16), false);
+        Ui.button(g, "Unbreakable", rx, ay + 20, rw, 16, Ui.in(mx, my, rx, ay + 20, rw, 16), false);
 
         // ---- enchantments ----
-        int hy = top() + 98;
+        int hy = top() + 118;
         g.text("Enchantments", rx, hy + 4, Ui.DIM);
         Ui.rr(g, rx + rw - 80, hy, 80, 14, Ui.in(mx, my, rx + rw - 80, hy, 80, 14) ? Ui.HOVER : Ui.BTN);
         g.text("Show All", rx + rw - 76, hy + 3, Ui.TEXT);
@@ -277,15 +277,15 @@ public final class InventoryPage implements Page {
         ItemStack st = stack(sel);
         if (Ui.in(mx, my, rx + 158, cy, rw - 158, 14)) { modify("{function:\"minecraft:set_count\",count:" + count + "}"); after(); return true; }
 
-        int ay = top() + 76, aw = (rw - 8) / 3;
+        int ay = top() + 76, aw = (rw - 4) / 2;
         if (Ui.in(mx, my, rx, ay, aw, 16)) { Cmd.run("item replace entity " + who() + " " + slotArg(sel) + " with minecraft:air"); after(); return true; }
         if (Ui.in(mx, my, rx + aw + 4, ay, aw, 16)) { modify("{function:\"minecraft:set_damage\",damage:1.0}"); after(); return true; }
-        if (Ui.in(mx, my, rx + 2 * (aw + 4), ay, aw, 16)) {
+        if (Ui.in(mx, my, rx, ay + 20, rw, 16)) {
             modify("{function:\"minecraft:set_components\",components:{\"minecraft:unbreakable\":{}}}");
             after();
             return true;
         }
-        if (Ui.in(mx, my, rx + rw - 80, top() + 98, 80, 14)) { showAll = !showAll; enchScroll = 0; return true; }
+        if (Ui.in(mx, my, rx + rw - 80, top() + 118, 80, 14)) { showAll = !showAll; enchScroll = 0; return true; }
         if (st.isEmpty()) return false;
 
         List<String> ids = enchList(st);
