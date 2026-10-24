@@ -8,19 +8,20 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /**
- * Villager / wandering trader summoner with custom trades. Left: live 3D preview + item picker. Right: job, biome, level, options,
+ * Villager / wandering trader summoner with custom trades. Left: live 3D preview + item picker / enchantment editor for
+ * the selected box. Right: job, biome, level, options,
  * the trade list and an editor for the selected trade (Cost + Cost 2 = Result). Without custom trades the
  * villager gets the normal ones for its job. Long data is sent as several commands, so it works on servers too (OP).
  */
 public final class VillagerPage implements Page {
-    /** One trade. b may be empty; custom* = item taken from the hand with all its data (enchantments, name...). */
+    /** One trade. b may be empty; custom* = item with extra data (enchantments, name... from the hand or the enchant editor). */
     private static final class Trade {
         ItemStack a = new ItemStack(Items.EMERALD), b = ItemStack.EMPTY, s = ItemStack.EMPTY;
         boolean customA, customB, customS;
         int uses = USES.length - 1;
     }
 
-    private static final int LW = 150, ROWH = 16, TR_H = 18, TR_ROWS = 4, PV = 96, SEARCH = PV + 4, LIST = PV + 24;
+    private static final int LW = 150, ROWH = 16, TR_H = 18, TR_ROWS = 4, PV = 96, TABS = PV + 4, SEARCH = PV + 22, LIST = PV + 42;
     private static final int R_JOB = 18, R_LVL = 38, R_OPT1 = 58, R_OPT2 = 76, R_NAME = 96, R_TR = 116, R_LIST = 132, R_ED = 212, R_ED2 = 234;
     private static final int[] USES = { 1, 4, 12, 16, 32, 64, Integer.MAX_VALUE };
     private static final String[] LEVELS = { "Novice", "Apprentice", "Journeyman", "Expert", "Master" };
@@ -29,14 +30,16 @@ public final class VillagerPage implements Page {
         { "cleric", "brewing_stand" }, { "farmer", "composter" }, { "fisherman", "barrel" },
         { "fletcher", "fletching_table" }, { "leatherworker", "cauldron" }, { "librarian", "lectern" },
         { "mason", "stonecutter" }, { "shepherd", "loom" }, { "toolsmith", "smithing_table" }, { "weaponsmith", "grindstone" } };
-    private static final String TAG = "rc_villager";
+    private static final String TAG = "rc_villager", SELF = "@e[tag=" + TAG + ",limit=1]";
+    private static final int MAX_CMD = 255;   // vanilla's command length limit on servers
 
     private final TextField search = new TextField(), name = new TextField();
     private String lastQuery;
     private List<ItemsPage.Entry> view = List.of();
     private List<String> jobs, biomes;
-    private int listScroll, trScroll, job, biome, level = 5;
+    private int listScroll, enchScroll, trScroll, job, biome, level = 5;
     private boolean trader, noAi, invul, silent, fixed = true;
+    private boolean enchMode, showAll;       // left column shows the enchantment editor instead of the item list
     private final List<Trade> trades = new ArrayList<>();
     private Trade cur;
     private int box = 2;                     // box being edited: 0 = Cost, 1 = Cost 2, 2 = Result
@@ -130,20 +133,13 @@ public final class VillagerPage implements Page {
         init();
         refilter();
 
-        // ---- left: preview + item picker ----
+        // ---- left: preview + item picker / enchantments ----
         drawPreview(g, mx, my);
-        search.draw(g, x, y + SEARCH, LW, 16, "Search items...");
-        int rows = listRows();
-        listScroll = Math.max(0, Math.min(listScroll, Math.max(0, view.size() - rows)));
-        bar.draw(g, x + LW + 2, y + LIST, rows * ROWH - 1, view.size(), rows, listScroll, mx, my);
-        for (int i = 0; i < rows && listScroll + i < view.size(); i++) {
-            ItemsPage.Entry e = view.get(listScroll + i);
-            int ry = y + LIST + i * ROWH;
-            Ui.rr(g, x, ry, LW, ROWH - 1, Ui.in(mx, my, x, ry, LW, ROWH - 1) ? Ui.HOVER : Ui.BTN);
-            g.item(e.stack(), x + 1, ry - 1);
-            g.text(Ui.fit(g, e.name(), LW - 24), x + 20, ry + 4, Ui.TEXT);
-        }
-        g.text(Ui.fit(g, "Click an item: puts it in the selected box", LW), x, y + h - 9, Ui.DIM);
+        int tw = (LW - 4) / 2;
+        Ui.selButton(g, "Items", x, y + TABS, tw, 14, Ui.in(mx, my, x, y + TABS, tw, 14), !enchMode);
+        Ui.selButton(g, "Enchantments", x + tw + 4, y + TABS, tw, 14, Ui.in(mx, my, x + tw + 4, y + TABS, tw, 14), enchMode);
+        if (enchMode) drawEnchants(g, mx, my);
+        else drawItems(g, mx, my);
 
         // ---- right: villager ----
         int rx = rx(), rw = rw(), hw = hw();
@@ -233,6 +229,71 @@ public final class VillagerPage implements Page {
         Ui.button(g, sum, rx, y + h - 18, rw, 18, Ui.in(mx, my, rx, y + h - 18, rw, 18), false);
     }
 
+    private void drawItems(Gfx g, int mx, int my) {
+        search.draw(g, x, y + SEARCH, LW, 16, "Search items...");
+        int rows = listRows();
+        listScroll = Math.max(0, Math.min(listScroll, Math.max(0, view.size() - rows)));
+        bar.draw(g, x + LW + 2, y + LIST, rows * ROWH - 1, view.size(), rows, listScroll, mx, my);
+        for (int i = 0; i < rows && listScroll + i < view.size(); i++) {
+            ItemsPage.Entry e = view.get(listScroll + i);
+            int ry = y + LIST + i * ROWH;
+            Ui.rr(g, x, ry, LW, ROWH - 1, Ui.in(mx, my, x, ry, LW, ROWH - 1) ? Ui.HOVER : Ui.BTN);
+            g.item(e.stack(), x + 1, ry - 1);
+            g.text(Ui.fit(g, e.name(), LW - 24), x + 20, ry + 4, Ui.TEXT);
+        }
+        g.text(Ui.fit(g, "Click an item: puts it in the selected box", LW), x, y + h - 9, Ui.DIM);
+    }
+
+    /** Item in the selected box of the selected trade (empty if none). */
+    private ItemStack target() { return cur == null ? ItemStack.EMPTY : get(cur, box); }
+
+    /** Enchantments that make sense for the item (all of them with Show All), plus the ones it already has. */
+    private List<String> enchList(ItemStack st) {
+        List<String> ids = new ArrayList<>();
+        if (st.isEmpty()) return ids;
+        java.util.Map<String, Integer> has = Compat.enchantsOf(st);
+        for (String id : Compat.enchantIds()) if (showAll || has.containsKey(id) || Compat.enchantFits(id, st)) ids.add(id);
+        return ids;
+    }
+
+    private void drawEnchants(Gfx g, int mx, int my) {
+        chip(g, "Show All", showAll, x, y + SEARCH, LW, mx, my);
+        ItemStack st = target();
+        List<String> ids = enchList(st);
+        java.util.Map<String, Integer> has = st.isEmpty() ? java.util.Map.of() : Compat.enchantsOf(st);
+        int rows = listRows();
+        enchScroll = Math.max(0, Math.min(enchScroll, Math.max(0, ids.size() - rows)));
+        bar.draw(g, x + LW + 2, y + LIST, rows * ROWH - 1, ids.size(), rows, enchScroll, mx, my);
+        if (st.isEmpty()) {
+            int ty = y + LIST + 2;
+            for (String l : Ui.wrap(g, cur == null ? "Add a trade and pick an item first." : "Put an item in the selected box first.", LW - 4)) {
+                g.text(l, x + 2, ty, Ui.DIM);
+                ty += 11;
+            }
+        } else if (ids.isEmpty()) g.text("No compatible enchantments.", x + 2, y + LIST + 2, Ui.DIM);
+        for (int i = 0; i < rows && enchScroll + i < ids.size(); i++) {
+            String id = ids.get(enchScroll + i);
+            int ry = y + LIST + i * ROWH, lv = has.getOrDefault(id, 0);
+            Ui.rr(g, x, ry, LW, ROWH - 1, lv > 0 ? Ui.SEL : Ui.BTN);
+            g.text(Ui.fit(g, pretty(id), LW - 86), x + 4, ry + 4, Ui.TEXT);
+            Ui.button(g, "-", x + LW - 78, ry, 14, ROWH - 1, Ui.in(mx, my, x + LW - 78, ry, 14, ROWH - 1), false);
+            Ui.center(g, String.valueOf(lv), x + LW - 64, ry + 4, 20, Ui.TEXT);
+            Ui.button(g, "+", x + LW - 44, ry, 14, ROWH - 1, Ui.in(mx, my, x + LW - 44, ry, 14, ROWH - 1), false);
+            Ui.button(g, "Max", x + LW - 28, ry, 28, ROWH - 1, Ui.in(mx, my, x + LW - 28, ry, 28, ROWH - 1), false);
+        }
+        String what = cur == null ? "" : new String[] { "Cost", "Cost 2", "Result" }[box] + (st.isEmpty() ? "" : ": " + st.getHoverName().getString());
+        g.text(Ui.fit(g, what.isEmpty() ? "Enchants the selected box" : "Enchanting " + what, LW), x, y + h - 9, Ui.DIM);
+    }
+
+    /** Sets one enchantment level on the selected box's item (0 removes it). A plain book becomes an enchanted book. */
+    private void enchant(String id, int lv) {
+        ItemStack st = target();
+        if (st.isEmpty()) return;
+        if (st.is(Items.BOOK)) { st = new ItemStack(Items.ENCHANTED_BOOK, st.getCount()); set(cur, box, st, true); }
+        Compat.setEnchant(st, id, lv);
+        set(cur, box, st, true);
+    }
+
     /** The villager as it will look (job, biome, level badge), turning its head toward the mouse. */
     private void drawPreview(Gfx g, int mx, int my) {
         Ui.rr(g, x, y, LW, PV, Ui.DARK);
@@ -296,15 +357,33 @@ public final class VillagerPage implements Page {
     // ------------------------------------------------------------------ input
     @Override
     public boolean click(int mx, int my, int btn) {
-        if (bar.press(mx, my)) { listScroll = bar.at(my); return true; }
+        if (bar.press(mx, my)) { scrollTo(bar.at(my)); return true; }
         if (trBar.press(mx, my)) { trScroll = trBar.at(my); return true; }
-        if (Ui.in(mx, my, x, y + SEARCH, LW, 16)) { search.focused = true; name.focused = false; return true; }
+        int tw = (LW - 4) / 2;
+        if (Ui.in(mx, my, x, y + TABS, tw, 14)) { enchMode = false; return true; }
+        if (Ui.in(mx, my, x + tw + 4, y + TABS, tw, 14)) { enchMode = true; return true; }
         int rx = rx(), rw = rw(), hw = hw();
         if (Ui.in(mx, my, rx, y + R_NAME, rw, 14)) { name.focused = true; search.focused = false; return true; }
 
         int rows = listRows();
-        for (int i = 0; i < rows && listScroll + i < view.size(); i++)
-            if (Ui.in(mx, my, x, y + LIST + i * ROWH, LW, ROWH - 1)) { pick(view.get(listScroll + i)); return true; }
+        if (enchMode) {
+            if (Ui.in(mx, my, x, y + SEARCH, LW, 16)) { showAll = !showAll; enchScroll = 0; return true; }
+            ItemStack st = target();
+            List<String> ids = enchList(st);
+            java.util.Map<String, Integer> has = st.isEmpty() ? java.util.Map.of() : Compat.enchantsOf(st);
+            for (int i = 0; i < rows && enchScroll + i < ids.size(); i++) {
+                String id = ids.get(enchScroll + i);
+                int ry = y + LIST + i * ROWH, lv = has.getOrDefault(id, 0);
+                int cap = Menu.OVERLEVEL.on ? 255 : Compat.enchantMax(id), d = btn == 1 && Menu.OVERLEVEL.on ? 10 : 1;
+                if (Ui.in(mx, my, x + LW - 78, ry, 14, ROWH - 1)) { enchant(id, Math.max(0, lv - d)); return true; }
+                if (Ui.in(mx, my, x + LW - 44, ry, 14, ROWH - 1)) { enchant(id, Math.min(Math.max(cap, lv), lv + d)); return true; }
+                if (Ui.in(mx, my, x + LW - 28, ry, 28, ROWH - 1)) { enchant(id, Compat.enchantMax(id)); return true; }
+            }
+        } else {
+            if (Ui.in(mx, my, x, y + SEARCH, LW, 16)) { search.focused = true; name.focused = false; return true; }
+            for (int i = 0; i < rows && listScroll + i < view.size(); i++)
+                if (Ui.in(mx, my, x, y + LIST + i * ROWH, LW, ROWH - 1)) { pick(view.get(listScroll + i)); return true; }
+        }
 
         if (Ui.in(mx, my, rx, y, hw, 14)) { trader = false; return true; }
         if (Ui.in(mx, my, rx + hw + 4, y, hw, 14)) { trader = true; return true; }
@@ -334,7 +413,7 @@ public final class VillagerPage implements Page {
         }
 
         if (cur != null) {
-            for (int i = 0; i < 3; i++) if (Ui.in(mx, my, boxX(i), y + R_ED, 18, 18)) { box = i; return true; }
+            for (int i = 0; i < 3; i++) if (Ui.in(mx, my, boxX(i), y + R_ED, 18, 18)) { box = i; enchScroll = 0; return true; }
             int cx = rx + 92, step = btn == 1 ? 8 : 1;
             if (Ui.in(mx, my, cx, y + R_ED + 2, 14, 14)) { count(-step); return true; }
             if (Ui.in(mx, my, cx + 36, y + R_ED + 2, 14, 14)) { count(step); return true; }
@@ -369,25 +448,49 @@ public final class VillagerPage implements Page {
     }
 
     // ------------------------------------------------------------------ commands
-    private static String item(ItemStack st, boolean custom) {
-        if (custom) return Compat.itemSnbt(st);
+    private static String item(ItemStack st) {
         return "{id:\"" + BuiltInRegistries.ITEM.getKey(st.getItem()) + "\",count:" + st.getCount() + "}";
     }
 
+    /** The trade with plain items; extra item data (enchantments...) is added afterwards by {@link #components}. */
     private String offer(Trade t) {
-        StringBuilder sb = new StringBuilder("{buy:").append(item(t.a, t.customA));
-        if (!t.b.isEmpty()) sb.append(",buyB:").append(item(t.b, t.customB));
-        sb.append(",sell:").append(item(t.s, t.customS));
+        StringBuilder sb = new StringBuilder("{buy:").append(item(t.a));
+        if (!t.b.isEmpty()) sb.append(",buyB:").append(item(t.b));
+        sb.append(",sell:").append(item(t.s));
         // xp:0 = the villager never levels up, so it never adds its normal trades on top of yours
-        sb.append(",maxUses:").append(USES[t.uses]).append(",uses:0,xp:0,priceMultiplier:").append(fixed ? "0.0f" : "0.05f").append('}');
-        return sb.toString();
+        sb.append(",maxUses:").append(USES[t.uses]).append(",xp:0");
+        if (!fixed) sb.append(",priceMultiplier:0.05f");
+        return sb.append('}').toString();
+    }
+
+    /**
+     * Adds an item's extra data to the trade just appended. Each part gets its own "data modify" command, split down
+     * (component, then e.g. single enchantment) until every command fits the server limit. Returns false if a part is still too long.
+     */
+    private static boolean components(List<String> cmds, String path, ItemStack st, boolean custom) {
+        if (!custom || st.isEmpty()) return true;
+        net.minecraft.nbt.CompoundTag c = Compat.componentsTag(st);
+        return c == null || split(cmds, path + ".components", c);
+    }
+
+    private static boolean split(List<String> cmds, String path, net.minecraft.nbt.Tag value) {
+        String c = "data modify entity " + SELF + " " + path + " set value " + value;
+        boolean local = Access.mode == Access.Mode.LOCAL;
+        if (local || c.length() <= MAX_CMD || !(value instanceof net.minecraft.nbt.CompoundTag ct) || Compat.keys(ct).isEmpty()) {
+            if (!local && c.length() > MAX_CMD) return false;
+            cmds.add(c);
+            return true;
+        }
+        boolean ok = true;
+        for (String k : Compat.keys(ct))
+            ok &= split(cmds, path + "." + (k.matches("[A-Za-z0-9_]+") ? k : "\"" + k + "\""), ct.get(k));
+        return ok;
     }
 
     private void summon() {
         init();
         List<Trade> ok = new ArrayList<>();
         for (Trade t : trades) if (!t.a.isEmpty() && !t.s.isEmpty()) ok.add(t);
-        String self = "@e[tag=" + TAG + ",limit=1,sort=nearest]";
 
         List<String> base = new ArrayList<>();
         base.add("Tags:[\"" + TAG + "\"]");
@@ -407,12 +510,16 @@ public final class VillagerPage implements Page {
         List<String> cmds = new ArrayList<>();
         cmds.add("execute at @s rotated ~ 0 positioned ^ ^ ^3 run summon minecraft:" + (trader ? "wandering_trader" : "villager")
                 + " ~ ~ ~ {" + String.join(",", base) + "}");
-        if (!extra.isEmpty()) cmds.add("data merge entity " + self + " {" + String.join(",", extra) + "}");
+        if (!extra.isEmpty()) cmds.add("data merge entity " + SELF + " {" + String.join(",", extra) + "}");
         int skipped = 0;
         for (Trade t : ok) {
-            String c = "data modify entity " + self + " Offers.Recipes append value " + offer(t);
-            if (Access.mode != Access.Mode.LOCAL && c.length() > 255) { skipped++; continue; }   // over the server's command limit
-            cmds.add(c);
+            List<String> tc = new ArrayList<>();
+            tc.add("data modify entity " + SELF + " Offers.Recipes append value " + offer(t));
+            String last = "Offers.Recipes[-1].";
+            boolean fits = components(tc, last + "buy", t.a, t.customA)
+                    & components(tc, last + "buyB", t.b, t.customB)
+                    & components(tc, last + "sell", t.s, t.customS);
+            if (fits) cmds.addAll(tc); else skipped++;   // some single piece of item data is over the server's command limit
         }
         cmds.add("tag @e[tag=" + TAG + "] remove " + TAG);
         Cmd.run(cmds.toArray(new String[0]));
@@ -425,7 +532,7 @@ public final class VillagerPage implements Page {
 
     @Override
     public boolean drag(int mx, int my) {
-        if (bar.dragging()) listScroll = bar.at(my);
+        if (bar.dragging()) scrollTo(bar.at(my));
         else if (trBar.dragging()) trScroll = trBar.at(my);
         else return false;
         return true;
@@ -436,11 +543,13 @@ public final class VillagerPage implements Page {
     @Override
     public boolean scroll(int mx, int my, double dy) {
         int d = (int) -Math.signum(dy);
-        if (mx < x + LW + 4) { if (my >= y + LIST) listScroll += d * 3; }
+        if (mx < x + LW + 4) { if (my >= y + LIST) { if (enchMode) enchScroll += d; else listScroll += d * 3; } }
         else if (my >= y + R_LIST && my < y + R_LIST + TR_ROWS * (TR_H + 1)) trScroll += d;
         else if (cur != null && my >= y + R_ED && my < y + R_ED + 18) count(-d);
         return true;
     }
+
+    private void scrollTo(int pos) { if (enchMode) enchScroll = pos; else listScroll = pos; }
 
     @Override public boolean typed(char c) { return search.focused ? search.typed(c) : name.typed(c); }
     @Override public boolean key(int key, int scan, int mods) { return search.focused ? search.key(key, mods) : name.key(key, mods); }

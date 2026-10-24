@@ -426,9 +426,18 @@ public final class Compat {
 
     /** The item in your main hand (empty if none). */
     public static ItemStack heldItem() { return mc().player == null ? ItemStack.EMPTY : mc().player.getMainHandItem(); }
-    /** Full SNBT of a stack ({id, count, components}), as used in commands. */
-    public static String itemSnbt(ItemStack st) {
-        return ItemStack.CODEC.encodeStart(mc().level.registryAccess().createSerializationContext(NbtOps.INSTANCE), st).getOrThrow().toString();
+    /** The stack's data components as NBT (enchantments, name...), or null when it has none. */
+    public static CompoundTag componentsTag(ItemStack st) {
+        if (st.isEmpty()) return null;
+        Tag t = ItemStack.CODEC.encodeStart(mc().level.registryAccess().createSerializationContext(NbtOps.INSTANCE), st).getOrThrow();
+        CompoundTag c = t instanceof CompoundTag ct ? ct.getCompoundOrEmpty("components") : new CompoundTag();
+        return c.isEmpty() ? null : c;
+    }
+    public static java.util.Set<String> keys(CompoundTag t) { return t.keySet(); }
+    /** Sets one enchantment level on the stack itself (stored enchantments on books); 0 removes it. */
+    public static void setEnchant(ItemStack st, String id, int lv) {
+        reg().get(Identifier.parse(id)).ifPresent(h ->
+                net.minecraft.world.item.enchantment.EnchantmentHelper.updateEnchantments(st, m -> m.set(h, lv)));
     }
 
     /** A client-only villager (or wandering trader) for the summoner's preview; null when there is no world. */
