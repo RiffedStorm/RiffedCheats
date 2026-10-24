@@ -195,10 +195,6 @@ It should say *Singleplayer / LAN host*. If not, open an issue.
 
 For private worlds and servers where everyone agrees. Do not use it on servers that forbid cheating. Not affiliated with Mojang, Microsoft, CheatUtils or YimMenu.
 
-## Note
-
-This project was made using Claude Sonnet 5.5
-
 ## License
 
 MIT
