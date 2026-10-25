@@ -356,13 +356,16 @@ public final class Compat {
         v.setVillagerData(new net.minecraft.world.entity.npc.VillagerData(
                 net.minecraft.core.registries.BuiltInRegistries.VILLAGER_TYPE.get(ResourceLocation.parse(type)),
                 net.minecraft.core.registries.BuiltInRegistries.VILLAGER_PROFESSION.get(ResourceLocation.parse(profession)), level));
+        if (mc().player != null) v.setPos(mc().player.getX(), mc().player.getY(), mc().player.getZ());
         return v;
     }
 
     /** A client-only entity of this type (for previews); null when there is no world or it cannot be made. */
     public static Entity createEntity(String id) {
         if (mc().level == null) return null;
-        return net.minecraft.world.entity.EntityType.byString(id).map(t -> (Entity) t.create(mc().level)).orElse(null);
+        Entity e = net.minecraft.world.entity.EntityType.byString(id).map(t -> (Entity) t.create(mc().level)).orElse(null);
+        if (e != null && mc().player != null) e.setPos(mc().player.getX(), mc().player.getY(), mc().player.getZ());
+        return e;
     }
     /** Applies summon-style NBT ("{...}") to an entity, the same way /summon would. */
     public static void loadNbt(Entity e, String snbt) throws Exception {

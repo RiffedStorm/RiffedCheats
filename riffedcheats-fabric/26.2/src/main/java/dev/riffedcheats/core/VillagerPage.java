@@ -306,7 +306,7 @@ public final class VillagerPage implements Page {
             try { preview = Compat.villagerPreview(trader, j, b, level); } catch (Throwable t) { preview = null; }
         }
         if (preview != null) {
-            try { g.entity(preview, x + LW - 74, y + 2, x + LW - 4, y + PV - 2, 42f, mx, my); } catch (Throwable ignored) {}
+            Ui.entity(g, preview, x + LW - 74, y + 2, x + LW - 4, y + PV - 2, 42f, mx, my);
         }
         int ty = y + 6;
         String n = name.text.trim();

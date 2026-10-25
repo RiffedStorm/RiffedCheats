@@ -9,6 +9,27 @@ public final class Ui {
             HOVER = 0xFF2F3B70, ACCENT = 0xFF6C8CF0, TEXT = 0xFFE8EAF6, DIM = 0xFF8E94B8,
             GREEN = 0xFF4CAF7A, RED = 0xFFE05C5C, REDBTN = 0xFF5A2630, REDHOV = 0xFF7A3040, DARK = 0xFF10132A;
 
+    private static final java.util.Set<String> BROKEN_PREVIEWS = new java.util.HashSet<>();
+
+    /**
+     * Draws a 3D preview; if this kind of entity fails (some renderers or mods do not like client-only entities) it is
+     * remembered and skipped from then on, the error is printed once to the game log, and false is returned so the caller can show an icon.
+     */
+    public static boolean entity(Gfx g, net.minecraft.world.entity.Entity e, int x0, int y0, int x1, int y1, float size, int mx, int my) {
+        if (!(e instanceof net.minecraft.world.entity.LivingEntity le)) return false;
+        String kind = e.getClass().getName();
+        if (BROKEN_PREVIEWS.contains(kind)) return false;
+        try {
+            g.entity(le, x0, y0, x1, y1, size, mx, my);
+            return true;
+        } catch (Throwable t) {
+            BROKEN_PREVIEWS.add(kind);
+            System.err.println("[RiffedCheats] 3D preview failed for " + kind + ", showing an icon instead:");
+            t.printStackTrace();
+            return false;
+        }
+    }
+
     public static boolean in(int mx, int my, int x, int y, int w, int h) {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }

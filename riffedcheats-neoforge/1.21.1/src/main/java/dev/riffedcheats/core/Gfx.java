@@ -35,9 +35,10 @@ public final class Gfx {
         org.joml.Vector3f mouse = m.transformPosition(new org.joml.Vector3f(mx, my, 0));
         float s = (b.x - a.x) / Math.max(1, x1 - x0);
         g.pose().pushPose();
-        g.pose().last().pose().identity();
-        net.minecraft.client.gui.screens.inventory.InventoryScreen.renderEntityInInventoryFollowsMouse(g,
-                Math.round(a.x), Math.round(a.y), Math.round(b.x), Math.round(b.y), Math.round(size * s), 0.0625f, mouse.x, mouse.y, e);
-        g.pose().popPose();
+        try {
+            g.pose().last().pose().identity();
+            net.minecraft.client.gui.screens.inventory.InventoryScreen.renderEntityInInventoryFollowsMouse(g,
+                    Math.round(a.x), Math.round(a.y), Math.round(b.x), Math.round(b.y), Math.round(size * s), 0.0625f, mouse.x, mouse.y, e);
+        } finally { g.pose().popPose(); }   // the menu's scaling must come back even if the entity fails to draw
     }
 }

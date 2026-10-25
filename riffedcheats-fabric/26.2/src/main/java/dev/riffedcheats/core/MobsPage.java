@@ -183,11 +183,12 @@ public final class MobsPage implements Page {
             } catch (Throwable t) { preview = null; }
         }
         int bx = rx + rw - 110;
-        if (preview instanceof net.minecraft.world.entity.LivingEntity le) {
+        float size = 0;
+        if (preview != null) {
             float bh = Math.max(0.3f, preview.getBbHeight()), bw = Math.max(0.3f, preview.getBbWidth());
-            float size = Math.min(40f, Math.min((PH - 14) / bh, 96f / bw));
-            try { g.entity(le, bx, y + 2, rx + rw - 4, y + PH - 2, size, mx, my); } catch (Throwable ignored) {}
-        } else g.itemScaled(shown.icon(), bx + 31, y + 16, 3f);
+            size = Math.min(40f, Math.min((PH - 14) / bh, 96f / bw));
+        }
+        if (!Ui.entity(g, preview, bx, y + 2, rx + rw - 4, y + PH - 2, size, mx, my)) g.itemScaled(shown.icon(), bx + 31, y + 16, 3f);
         Ui.label(g, shown.name(), rx + 5, y + 6, rw - 116, Ui.TEXT);
         Ui.label(g, shown.id(), rx + 5, y + 18, rw - 116, Ui.DIM);
         int ly = y + 32;
