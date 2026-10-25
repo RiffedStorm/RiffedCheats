@@ -351,7 +351,11 @@ public final class Compat {
     /** A client-only villager (or wandering trader) for the summoner's preview; null when there is no world. */
     public static LivingEntity villagerPreview(boolean trader, String profession, String type, int level) {
         if (mc().level == null) return null;
-        if (trader) return new net.minecraft.world.entity.npc.WanderingTrader(net.minecraft.world.entity.EntityType.WANDERING_TRADER, mc().level);
+        if (trader) {
+            var w = new net.minecraft.world.entity.npc.WanderingTrader(net.minecraft.world.entity.EntityType.WANDERING_TRADER, mc().level);
+            if (mc().player != null) w.setPos(mc().player.getX(), mc().player.getY(), mc().player.getZ());
+            return w;
+        }
         var v = new net.minecraft.world.entity.npc.Villager(net.minecraft.world.entity.EntityType.VILLAGER, mc().level);
         v.setVillagerData(new net.minecraft.world.entity.npc.VillagerData(
                 net.minecraft.core.registries.BuiltInRegistries.VILLAGER_TYPE.get(ResourceLocation.parse(type)),

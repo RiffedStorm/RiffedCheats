@@ -443,13 +443,27 @@ public final class Compat {
     /** A client-only villager (or wandering trader) for the summoner's preview; null when there is no world. */
     public static LivingEntity villagerPreview(boolean trader, String profession, String type, int level) {
         if (mc().level == null) return null;
-        if (trader) return new net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader(net.minecraft.world.entity.EntityTypes.WANDERING_TRADER, mc().level);
+        if (trader) {
+            var w = new net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader(net.minecraft.world.entity.EntityTypes.WANDERING_TRADER, mc().level);
+            preparePreview(w);
+            return w;
+        }
         var v = new net.minecraft.world.entity.npc.villager.Villager(net.minecraft.world.entity.EntityTypes.VILLAGER, mc().level);
         var t = net.minecraft.core.registries.BuiltInRegistries.VILLAGER_TYPE.get(Identifier.parse(type));
         var p = net.minecraft.core.registries.BuiltInRegistries.VILLAGER_PROFESSION.get(Identifier.parse(profession));
         if (t.isPresent() && p.isPresent()) v.setVillagerData(new net.minecraft.world.entity.npc.villager.VillagerData(t.get(), p.get(), level));
-        if (mc().player != null) v.setPos(mc().player.getX(), mc().player.getY(), mc().player.getZ());
+        preparePreview(v);
         return v;
+    }
+
+    private static int previewIds = -1_000_000;
+    /**
+     * Preview entities are never added to the world, but 26.x renderers read the entity ID, so each one gets its own
+     * negative ID (real entities only use positive ones). Also placed where you stand, for lighting and mods.
+     */
+    private static void preparePreview(Entity e) {
+        e.setId(previewIds--);
+        if (mc().player != null) e.setPos(mc().player.getX(), mc().player.getY(), mc().player.getZ());
     }
 
     /** A client-only entity of this type (for previews); null when there is no world or it cannot be made. */
@@ -457,7 +471,7 @@ public final class Compat {
         if (mc().level == null) return null;
         Entity e = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.parse(id))
                 .map(t -> (Entity) t.create(mc().level, net.minecraft.world.entity.EntitySpawnReason.LOAD)).orElse(null);
-        if (e != null && mc().player != null) e.setPos(mc().player.getX(), mc().player.getY(), mc().player.getZ());
+        if (e != null) preparePreview(e);
         return e;
     }
     /** Applies summon-style NBT ("{...}") to an entity, the same way /summon would. */
