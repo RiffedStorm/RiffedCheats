@@ -109,16 +109,7 @@ public final class Menu {
     public static final Setting NODELAY = t("No Attack Delay", false);
     public static final Setting ANTIKB = t("Anti-Knockback", false);
 
-    // ---------------- Render ----------------
     public static final Setting FULLBRIGHT = t("Fullbright", false);
-    public static final Setting ESP = t("Entity ESP (glow)", false);
-    public static final Setting XRAY = t("Xray", false);
-    public static final Setting XRAY_FB = t("Xray: Auto Fullbright", true);
-    public static final Setting[] XRAY_ORES = {
-        t("Xray: Coal", true), t("Xray: Iron", true), t("Xray: Copper", true), t("Xray: Gold", true),
-        t("Xray: Redstone", true), t("Xray: Lapis", true), t("Xray: Diamond", true), t("Xray: Emerald", true),
-        t("Xray: Quartz", true), t("Xray: Ancient Debris", true), t("Xray: Chests / Spawners / Portals", true),
-        t("Xray: Other Modded Ores", true) };
     // Freecam is disabled for now (crashed on dedicated servers): not in the menu, not saved, always off.
     // The code in Features.java stays dormant until it is fixed.
     public static final Setting FREECAM = Setting.toggle("Freecam", false);
@@ -141,7 +132,7 @@ public final class Menu {
 
     static {
         cat("Self",
-            tab("Main", GOD, HEAL, HUNGER, NOFALL,
+            tab("Main", GOD, HEAL, HUNGER, NOFALL, FULLBRIGHT,
                 row("Gamemode", "Survival", "gamemode survival @s", "Creative", "gamemode creative @s",
                     "Adventure", "gamemode adventure @s", "Spectator", "gamemode spectator @s"),
                 b("Set My Spawnpoint Here", Features::setSpawnHere),
@@ -169,10 +160,6 @@ public final class Menu {
             tab("Attack", CRIT, NODELAY, ANTIKB,
                 lab("Always Crit sends tiny hop packets before each hit, no jumping needed."),
                 lab("No Attack Delay removes the cooldown bar: spam hits at full damage.")));
-
-        cat("Render",
-            tab("Visuals", FULLBRIGHT, ESP),
-            tab("Xray", concat(new Setting[] { XRAY, XRAY_FB }, XRAY_ORES)));
 
         cat("World",
             tab("Time",
@@ -262,17 +249,10 @@ public final class Menu {
         changed();
     }
 
-    private static Setting[] concat(Setting[] a, Setting[] b) {
-        Setting[] r = new Setting[a.length + b.length];
-        System.arraycopy(a, 0, r, 0, a.length);
-        System.arraycopy(b, 0, r, a.length, b.length);
-        return r;
-    }
-
     private static void bump(int d) { XP_LEVEL.value = Math.max(0, Math.min(100000, XP_LEVEL.value + d)); changed(); }
 
     public static void disableAll() {
-        for (Setting st : ALL) if (st.kind == Setting.Kind.TOGGLE && st != AUTOSAVE && st != UPDATE_CHECK && st != UNBREAKABLE && st != OVERLEVEL && !st.name.startsWith("Xray: ")) st.on = false;
+        for (Setting st : ALL) if (st.kind == Setting.Kind.TOGGLE && st != AUTOSAVE && st != UPDATE_CHECK && st != UNBREAKABLE && st != OVERLEVEL) st.on = false;
         changed();
     }
 

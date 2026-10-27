@@ -41,4 +41,12 @@ public final class Gfx {
                     Math.round(a.x), Math.round(a.y), Math.round(b.x), Math.round(b.y), Math.round(size * s), 0.0625f, mouse.x, mouse.y, e);
         } finally { g.pose().popPose(); }   // the menu's scaling must come back even if the entity fails to draw
     }
+
+
+    /** The player's face (with hat layer) like in the Tab list; nothing if they are not in the player list. */
+    public void head(String name, int x, int y, int size) {
+        var c = Minecraft.getInstance().getConnection();
+        var info = c == null ? null : c.getPlayerInfo(name);
+        if (info != null) net.minecraft.client.gui.components.PlayerFaceRenderer.draw(g, info.getSkin(), x, y, size);
+    }
 }

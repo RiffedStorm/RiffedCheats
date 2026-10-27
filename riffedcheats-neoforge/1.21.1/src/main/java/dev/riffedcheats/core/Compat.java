@@ -204,7 +204,6 @@ public final class Compat {
 
     public static Iterable<Entity> entities(ClientLevel level) { return level.entitiesForRendering(); }
     public static void attack(Entity e) { if (mc().gameMode != null && mc().player != null) mc().gameMode.attack(mc().player, e); }
-    public static void glow(Entity e, boolean on) { e.setGlowingTag(on); }
 
     public static void sendPos(double x, double y, double z, boolean onGround) {
         LocalPlayer p = mc().player;
@@ -385,5 +384,12 @@ public final class Compat {
                 .ifPresent(r -> { for (Object k : r.keySet()) l.add(k.toString()); });
         Collections.sort(l);
         return l;
+    }
+
+    /** Ping in ms from the player list, -1 if unknown. */
+    public static int ping(String name) {
+        ClientPacketListener c = mc().getConnection();
+        PlayerInfo i = c == null ? null : c.getPlayerInfo(name);
+        return i == null ? -1 : i.getLatency();
     }
 }

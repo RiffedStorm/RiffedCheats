@@ -49,15 +49,14 @@ It is a **client-side** mod. You only install it on your own PC. Nothing needs t
 
 | Category | What you get |
 |---|---|
-| **Self** | God Mode, Auto Heal, Infinite Hunger, No Fall Damage, gamemode, set your spawnpoint where you stand, heal / clear effects / clear inventory, **inventory editor** (items, counts, enchantments, repair, unbreakable), Flight (+ speed), Walk Speed, High Jump, Step Assist, Low Gravity, Infinite Jump, Auto Sprint, Extended Reach, 11 more potion effects with level sliders |
+| **Self** | God Mode, Auto Heal, Infinite Hunger, No Fall Damage, Fullbright, gamemode, set your spawnpoint where you stand, heal / clear effects / clear inventory, **inventory editor** (items, counts, enchantments, repair, unbreakable), Flight (+ speed), Walk Speed, High Jump, Step Assist, Low Gravity, Infinite Jump, Auto Sprint, Extended Reach, 11 more potion effects with level sliders |
 | **XP / Level** | Set any level, **freeze** it (checked every tick, a command is only sent when the level really changes, so no lag) |
 | **Combat** | Kill Aura, **Always Crit** (works on the ground, no jumping), **No Attack Delay** (spam full-damage hits), Anti-Knockback |
-| **Render** | Fullbright, Entity ESP (glow), **Xray** with per-ore toggles |
 | **World** | Time (skips *forward*, so the day counter never resets), weather, difficulty, **live game rule switches** (green ON / red OFF); **ProtoManly's Weather** storms when that mod is installed |
 | **Teleport** | **Saved locations** with names, per world / server and per dimension (teleports work across dimensions), **teleport to your last death**, world spawn, quick up / down / sky |
 | **Items** | **Item spawner** with search + big icon preview on hover, enchantment editor, count, *Infinite Durability*, over-max enchant levels; **God Armor** and **God Tools** in one click |
 | **Mobs** | **Mob summoner** with search, Hostile / Passive / Other filter, **live 3D preview**, per-mob looks (wolf / cat / frog variants, collars, tamed, horse colors & markings, sheep wool, panda genes...), count, No AI / Baby / Glowing / Invincible / No Despawn / Silent, custom name; **Villagers**: summon villagers or wandering traders with job, biome, level, options and **custom trades** (any item, held items with all their data, uses limit, fixed prices); cleanup buttons |
-| **Players** | Online player list with admin actions: teleport, bring, heal, gamemode, gift God gear, **edit their inventory**, launch, freeze, blind, lightning, kick and more |
+| **Players** | Online player list (heads + ping, like the Tab list) with admin actions: teleport, bring, heal, gamemode, gift God gear, **edit their inventory**, launch, freeze, blind, lightning, kick and more |
 | **Console** | Command executor with live suggestions and history, **click coordinates** (e.g. from /locate) to teleport, clear log / history, **no "allow cheats" needed in your own world** |
 | **Settings** | Autosave (on by default), manual save, disable everything, reset server-side values, reset all sliders; **in-game updater**: checks GitHub releases and updates with one click, reloading the menu **without restarting or leaving your world** |
 
@@ -121,17 +120,13 @@ The menu scales with your **window resolution and GUI scale**, so it looks the s
   1. Take screenshots in game with F2 (they are saved in .minecraft/screenshots).
   2. Create the folder  docs/screenshots  in this repository.
   3. Copy the images there and rename them to match the names used on this page
-     (hero.png, item-spawner.png, no-op.png, players.png, xray.png, console.png).
+     (hero.png, item-spawner.png, no-op.png, players.png, console.png).
   4. Commit and push. GitHub shows them automatically.
   To use a different file name, just change the path inside the  ![...](...)  line. -->
 
-| Players | Xray |
+| Players | Console |
 |---|---|
-| ![Player list](docs/screenshots/players.png) | ![Xray](docs/screenshots/xray.png) |
-
-| Console |
-|---|
-| ![Console](docs/screenshots/console.png) |
+| ![Player list](docs/screenshots/players.png) | ![Console](docs/screenshots/console.png) |
 
 ---
 
@@ -181,10 +176,7 @@ The mod does everything through normal vanilla commands, so **no server mod is r
 ## FAQ
 
 **Does it work with Sodium / Embeddium?**
-Xray hooks the vanilla block renderer. With Sodium-style renderers Xray may do nothing, everything else works.
-
-**Xray does nothing.**
-It depends on a Minecraft internal that can change between versions. The rest of the mod still works. Open an issue with your version.
+Yes.
 
 **The menu says "No Operator" in my own singleplayer world.**
 It should say *Singleplayer / LAN host*. If not, open an issue.

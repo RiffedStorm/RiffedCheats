@@ -8,9 +8,6 @@ version="${mod_version}"
 displayName="RiffedCheats"
 description='''Client-side cheat / trainer menu inspired by CheatUtils, styled like YimMenuV2. Works in your own worlds, and on servers only with operator rights.'''
 
-[[mixins]]
-config="riffedcheats.mixins.json"
-
 [[dependencies.${mod_id}]]
 modId="neoforge"
 type="required"

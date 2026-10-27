@@ -1,6 +1,5 @@
 package dev.riffedcheats.core;
 
-import dev.riffedcheats.Xray;
 
 import static dev.riffedcheats.core.Menu.*;
 
@@ -28,8 +27,8 @@ import net.minecraft.world.phys.Vec3;
 public final class Features {
     private static long ticks;
     private static LocalPlayer lastPlayer;
-    private static boolean flyWas, srvFlySent, fbWas, espWas, resumeSprint;
-    private static int lastXraySig = -1, jumpCd, auraCd;
+    private static boolean flyWas, srvFlySent, fbWas, resumeSprint, oldXrayChecked;
+    private static int jumpCd, auraCd;
     private static long lastFreezeSend;
 
     // freecam
@@ -81,15 +80,27 @@ public final class Features {
         if (p != null) {
             if (cam != null) freecamStop(p);
             if (fbWas) Compat.removeNightVision(p);
-            if (espWas && mc.level != null) for (Entity e : Compat.entities(mc.level)) Compat.glow(e, false);
         }
         Cmd.clear();
     }
 
+    /**
+     * Xray was removed in 1.6. After an in-game update from an older version, its part of the mod (loaded at startup) is
+     * still there until the game restarts; if Xray was on, the world would stay see-through, so switch it off once.
+     */
+    private static void turnOffOldXray() {
+        try {
+            Class<?> x = Class.forName("dev.riffedcheats.Xray");
+            if (!x.getField("enabled").getBoolean(null)) return;
+            x.getMethod("set", boolean.class, int.class).invoke(null, false, 0);
+            Compat.setSmartCull(true);
+            Compat.rebuildChunks();
+        } catch (Throwable ignored) {}   // not there: fresh 1.6+ install
+    }
+
     private static void onNewPlayer() {
         if (cam != null) { cam = null; savedInput = null; Compat.setCamera(null); Compat.setRenderHand(true); }
-        flyWas = srvFlySent = fbWas = espWas = false;
-        lastXraySig = -1;
+        flyWas = srvFlySent = fbWas = false;
         effSent.clear(); effLast.clear(); effAmpSent.clear();
         for (Attr a : ATTRS) a.sent = Double.NaN;
         Cmd.clear();
@@ -123,31 +134,11 @@ public final class Features {
         }
         if (AUTOSPRINT.active() && mc.options.keyUp.isDown() && !p.isUsingItem() && !p.isShiftKeyDown()) p.setSprinting(true);
 
-        // Fullbright (also auto-enabled by Xray)
-        boolean wantFb = FULLBRIGHT.active() || (XRAY.active() && XRAY_FB.on);
-        if (wantFb) { if (!Compat.hasNightVision(p)) Compat.addNightVision(p); fbWas = true; }
+        // Fullbright
+        if (FULLBRIGHT.active()) { if (!Compat.hasNightVision(p)) Compat.addNightVision(p); fbWas = true; }
         else if (fbWas) { Compat.removeNightVision(p); fbWas = false; }
 
-        // ESP via vanilla glow outline
-        if (ESP.active()) {
-            for (Entity e : Compat.entities(level)) if (e instanceof LivingEntity && e != p) Compat.glow(e, true);
-            espWas = true;
-        } else if (espWas) {
-            for (Entity e : Compat.entities(level)) Compat.glow(e, false);
-            espWas = false;
-        }
-
-        // Xray (only rebuilds chunks when something changed)
-        boolean xr = XRAY.active();
-        int sig = 0;
-        for (int i = 0; i < XRAY_ORES.length; i++) if (XRAY_ORES[i].on) sig |= 1 << i;
-        sig = xr ? (sig | (1 << 20)) : 0;
-        if (sig != lastXraySig) {
-            lastXraySig = sig;
-            Xray.set(xr, sig & 0xFFFFF);
-            Compat.setSmartCull(!xr);
-            Compat.rebuildChunks();
-        }
+        if (!oldXrayChecked) { oldXrayChecked = true; turnOffOldXray(); }
 
         // Freecam
         if (FREECAM.active()) freecamTick(p, level, mc); else if (cam != null) freecamStop(p);

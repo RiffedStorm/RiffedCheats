@@ -67,7 +67,9 @@ public final class PlayersPage implements Page {
             int ry = y + 14 + i * 18;
             boolean sel = n.equals(selected);
             Ui.rr(g, x, ry, LW, 17, sel ? Ui.SEL : Ui.in(mx, my, x, ry, LW, 17) ? Ui.HOVER : Ui.BTN);
-            g.text(Ui.fit(g, n, LW - 10), x + 5, ry + 5, Ui.TEXT);
+            g.head(n, x + 2, ry + 1, 15);
+            Ui.label(g, n, x + 21, ry + 5, LW - 41, Ui.TEXT);
+            pingBars(g, Compat.ping(n), x + LW - 15, ry + 4);
         }
 
         int rx = x + LW + 8, rw = w - LW - 8;
@@ -87,6 +89,16 @@ public final class PlayersPage implements Page {
         for (int i = 0; i < 4; i++) {
             int bx = rx + i * (ew + 4);
             Ui.button(g, el[i], bx, ey + 11, ew, 18, Ui.in(mx, my, bx, ey + 11, ew, 18), false);
+        }
+    }
+
+    /** Five signal bars like the Tab list: more and greener = lower ping; gray = unknown. */
+    private static void pingBars(Gfx g, int ms, int bx, int by) {
+        int lit = ms < 0 ? 0 : ms < 150 ? 5 : ms < 300 ? 4 : ms < 600 ? 3 : ms < 1000 ? 2 : 1;
+        int color = lit >= 4 ? Ui.GREEN : lit == 3 ? 0xFFE0C04C : Ui.RED;
+        for (int i = 0; i < 5; i++) {
+            int bh = 2 + i * 2;
+            g.fill(bx + i * 2, by + 10 - bh, bx + i * 2 + 1, by + 10, i < lit ? color : Ui.DARK);
         }
     }
 

@@ -7,13 +7,13 @@ import java.nio.file.Path;
 
 /**
  * Loads the core (menu + features, package dev.riffedcheats.core) from the mod jar through its own class loader,
- * so an update can drop it and load the new jar's core without restarting the game. This class, Core, Xray,
- * the mixin and the entry point stay as they were loaded at startup.
+ * so an update can drop it and load the new jar's core without restarting the game. This class, Core
+ * and the entry point stay as they were loaded at startup.
  */
 public final class Loader {
     private static final String CORE = "dev.riffedcheats.core.";
 
-    /** Bump when Core / Loader / Xray / the mixin / the entry point change in a way an old copy cannot serve. */
+    /** Bump when Core / Loader / the entry point change in a way an old copy cannot serve. */
     public static int api() { return 1; }
 
     private static volatile Core core;
