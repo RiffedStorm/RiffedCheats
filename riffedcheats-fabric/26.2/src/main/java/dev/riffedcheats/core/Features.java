@@ -68,9 +68,25 @@ public final class Features {
 
         Teleports.tick(p);
         client(p, level, mc);
-        if (Access.allowed) { Cmd.tick(); server(p); } else Cmd.clear();
+        if (Access.allowed) { Cmd.tick(); server(p); keepTradesUnlimited(p, level); } else Cmd.clear();
 
         if (resumeSprint) { resumeSprint = false; if (p.isSprinting()) Compat.sendSprint(p, true); }
+    }
+
+    /**
+     * Mobs > Villagers "Unlimited Uses": villagers summoned with it carry a tag. Their normal trades only appear once the
+     * game makes them (on newer versions: when someone first opens the trade screen, and again at each level up), so every
+     * 10 s the tagged villagers near you get all their trades set to unlimited uses. Silent, and nothing at all without them.
+     */
+    private static void keepTradesUnlimited(LocalPlayer p, ClientLevel level) {
+        if (!Menu.VILL_UNLIMITED.on || ticks % 200 != 0) return;
+        for (Entity e : Compat.entities(level)) {   // only bother the server when a villager / trader is around
+            String id = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString();
+            if ((id.equals("minecraft:villager") || id.equals("minecraft:wandering_trader")) && e.distanceToSqr(p) < 96 * 96) {
+                Cmd.run(VillagerPage.UNLIMITED_CMD);
+                return;
+            }
+        }
     }
 
     /** Before this core is replaced by an update: undo client-only changes the new core cannot know about. */

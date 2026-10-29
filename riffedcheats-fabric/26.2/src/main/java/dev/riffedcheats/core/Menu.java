@@ -118,6 +118,8 @@ public final class Menu {
     // ---------------- Items / settings ----------------
     public static final Setting UNBREAKABLE = t("Infinite Durability", false);
     public static final Setting OVERLEVEL = t("Over-Max Enchant Levels", false);
+    /** Mobs > Villagers switch: summoned villagers' normal trades never run out (kept up by Features.keepTradesUnlimited). */
+    public static final Setting VILL_UNLIMITED = t("Villagers: Unlimited Uses", false);
     public static final Setting TIME_CUSTOM = s("Custom Time (ticks)", 0, 24000, 100, 6000);
     public static final Setting AUTOSAVE = t("Autosave", true);
     public static final Setting UPDATE_CHECK = t("Check for Updates", true);
@@ -252,7 +254,7 @@ public final class Menu {
     private static void bump(int d) { XP_LEVEL.value = Math.max(0, Math.min(100000, XP_LEVEL.value + d)); changed(); }
 
     public static void disableAll() {
-        for (Setting st : ALL) if (st.kind == Setting.Kind.TOGGLE && st != AUTOSAVE && st != UPDATE_CHECK && st != UNBREAKABLE && st != OVERLEVEL) st.on = false;
+        for (Setting st : ALL) if (st.kind == Setting.Kind.TOGGLE && st != AUTOSAVE && st != UPDATE_CHECK && st != UNBREAKABLE && st != OVERLEVEL && st != VILL_UNLIMITED) st.on = false;
         changed();
     }
 

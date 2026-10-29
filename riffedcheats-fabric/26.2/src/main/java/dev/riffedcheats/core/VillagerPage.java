@@ -31,7 +31,13 @@ public final class VillagerPage implements Page {
         { "fletcher", "fletching_table" }, { "leatherworker", "cauldron" }, { "librarian", "lectern" },
         { "mason", "stonecutter" }, { "shepherd", "loom" }, { "toolsmith", "smithing_table" }, { "weaponsmith", "grindstone" } };
     private static final String TAG = "rc_villager", SELF = "@e[tag=" + TAG + ",limit=1]";
-    private static final int MAX_CMD = 255;   // vanilla's command length limit on servers
+    private static final int MAX_CMD = 255;
+    /** Villagers whose normal trades are kept at unlimited uses (see Features.keepTradesUnlimited). */
+    static final String UNLIMITED_TAG = "rc_unlimited";
+    /** Sets every trade of the tagged villagers near you to unlimited uses; does nothing (no message) before they have trades. */
+    static final String UNLIMITED_CMD = "execute as @e[tag=" + UNLIMITED_TAG + ",distance=..96] if data entity @s Offers.Recipes[0]"
+            + " run data modify entity @s Offers.Recipes[].maxUses set value 2147483647";
+    private static final int UNL_W = 100;   // vanilla's command length limit on servers
 
     private final TextField search = new TextField(), name = new TextField();
     private String lastQuery;
@@ -163,7 +169,8 @@ public final class VillagerPage implements Page {
         chip(g, "Invincible", invul, rx + hw + 4, y + R_OPT1, hw, mx, my);
         chip(g, "Silent", silent, rx, y + R_OPT2, hw, mx, my);
         chip(g, "Fixed Prices", fixed, rx + hw + 4, y + R_OPT2, hw, mx, my);
-        name.draw(g, rx, y + R_NAME, rw, 14, "Custom name (optional)");
+        name.draw(g, rx, y + R_NAME, rw - UNL_W - 4, 14, "Custom name (optional)");
+        chip(g, "Unlimited Uses", Menu.VILL_UNLIMITED.on, rx + rw - UNL_W, y + R_NAME - 1, UNL_W, mx, my);
 
         // ---- trades ----
         g.text("Trades (" + trades.size() + ")", rx, y + R_TR + 3, Ui.TEXT);
@@ -345,7 +352,13 @@ public final class VillagerPage implements Page {
         if (Ui.in(mx, my, x, y + TABS, tw, 14)) { enchMode = false; return true; }
         if (Ui.in(mx, my, x + tw + 4, y + TABS, tw, 14)) { enchMode = true; return true; }
         int rx = rx(), rw = rw(), hw = hw();
-        if (Ui.in(mx, my, rx, y + R_NAME, rw, 14)) { name.focused = true; search.focused = false; return true; }
+        if (Ui.in(mx, my, rx, y + R_NAME, rw - UNL_W - 4, 14)) { name.focused = true; search.focused = false; return true; }
+        if (Ui.in(mx, my, rx + rw - UNL_W, y + R_NAME - 1, UNL_W, 16)) {
+            Menu.VILL_UNLIMITED.on = !Menu.VILL_UNLIMITED.on;
+            Menu.changed();
+            note(Menu.VILL_UNLIMITED.on ? "Normal trades of new villagers never run out." : "Normal trades restock the vanilla way.");
+            return true;
+        }
 
         int rows = listRows();
         if (enchMode) {
@@ -475,7 +488,8 @@ public final class VillagerPage implements Page {
         for (Trade t : trades) if (!t.a.isEmpty() && !t.s.isEmpty()) ok.add(t);
 
         List<String> base = new ArrayList<>();
-        base.add("Tags:[\"" + TAG + "\"]");
+        boolean unlimited = Menu.VILL_UNLIMITED.on && ok.isEmpty();   // custom trades have their own Uses setting
+        base.add("Tags:[\"" + TAG + "\"" + (unlimited ? ",\"" + UNLIMITED_TAG + "\"" : "") + "]");
         if (trader) base.add("DespawnDelay:0");
         else if (!jobs.isEmpty()) {
             base.add("VillagerData:{profession:\"" + jobs.get(job) + "\",level:" + level + ",type:\"" + biomes.get(biome) + "\"}");
@@ -503,13 +517,15 @@ public final class VillagerPage implements Page {
                     & components(tc, last + "sell", t.s, t.customS);
             if (fits) cmds.addAll(tc); else skipped++;   // some single piece of item data is over the server's command limit
         }
+        if (unlimited) cmds.add(UNLIMITED_CMD);   // right away where the trades already exist (1.21.x), later via Features
         cmds.add("tag @e[tag=" + TAG + "] remove " + TAG);
         Cmd.run(cmds.toArray(new String[0]));
 
         int bad = trades.size() - ok.size();
         if (skipped > 0) note(skipped + " trade(s) too long for a server, left out.");
         else if (bad > 0) note(bad + " unfinished trade(s) left out.");
-        else note(ok.isEmpty() ? "Summoned with normal trades." : "Summoned with " + ok.size() + " custom trade(s).");
+        else note(ok.isEmpty() ? (unlimited ? "Summoned with normal trades, unlimited uses." : "Summoned with normal trades.")
+                : "Summoned with " + ok.size() + " custom trade(s).");
     }
 
     @Override
