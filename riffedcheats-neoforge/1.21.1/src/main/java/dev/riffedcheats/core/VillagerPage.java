@@ -229,7 +229,7 @@ public final class VillagerPage implements Page {
         }
         boolean noted = note != null && System.currentTimeMillis() < noteUntil;
         String hint = noted ? note : cur == null ? "" : "Hand = the item you hold, with all its data";
-        g.text(Ui.fit(g, hint, rw), rx, y + R_ED2 + 19, noted ? Ui.TEXT : Ui.DIM);
+        Ui.label(g, hint, rx, y + R_ED2 + 19, rw, noted ? Ui.TEXT : Ui.DIM);
 
         // ---- summon ----
         String sum = trader ? "Summon Wandering Trader" : "Summon " + (jobs.isEmpty() ? "Villager" : pretty(jobs.get(job)));
@@ -356,7 +356,7 @@ public final class VillagerPage implements Page {
         if (Ui.in(mx, my, rx + rw - UNL_W, y + R_NAME - 1, UNL_W, 16)) {
             Menu.VILL_UNLIMITED.on = !Menu.VILL_UNLIMITED.on;
             Menu.changed();
-            note(Menu.VILL_UNLIMITED.on ? "Normal trades of new villagers never run out." : "Normal trades restock the vanilla way.");
+            note(Menu.VILL_UNLIMITED.on ? "Normal trades never run out now." : "Normal trades restock the vanilla way.");
             return true;
         }
 
@@ -524,7 +524,7 @@ public final class VillagerPage implements Page {
         int bad = trades.size() - ok.size();
         if (skipped > 0) note(skipped + " trade(s) too long for a server, left out.");
         else if (bad > 0) note(bad + " unfinished trade(s) left out.");
-        else note(ok.isEmpty() ? (unlimited ? "Summoned with normal trades, unlimited uses." : "Summoned with normal trades.")
+        else note(ok.isEmpty() ? (unlimited ? "Summoned, trades never run out." : "Summoned with normal trades.")
                 : "Summoned with " + ok.size() + " custom trade(s).");
     }
 
