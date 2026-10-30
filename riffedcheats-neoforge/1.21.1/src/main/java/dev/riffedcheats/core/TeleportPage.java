@@ -4,7 +4,7 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 
-/** Saved teleport locations per dimension (tabs on top), save-here with a name, last death, go / rename / delete. */
+/** Saved teleport locations per dimension (tabs on top), save-here with a name, last death, go / rename / delete, drag to sort. */
 public final class TeleportPage implements Page {
     private static final int ROWH = 18, LIST = 80, BTN = 44;
 
@@ -14,6 +14,9 @@ public final class TeleportPage implements Page {
     private int scroll;
     private final Scrollbar bar = new Scrollbar();
     private int x, y, w, h;
+    private Teleports.Loc dragged;      // row being dragged to a new place
+    private int grabOff, dragMy;        // where in the row it was grabbed, current mouse height
+    private long lastAutoScroll;
 
     public TeleportPage() { name.max = 32; }
 
@@ -54,27 +57,59 @@ public final class TeleportPage implements Page {
         // saved list
         List<Teleports.Loc> list = Teleports.list(dim);
         g.text("Saved in " + Teleports.dimName(dim) + " (" + list.size() + ")", x, y + 68, Ui.DIM);
+        if (list.size() > 1) { String t = "Drag a row to sort"; g.text(t, x + w - g.width(t), y + 68, Ui.DIM); }
         int rows = rows();
+        if (dragged != null) autoScroll(list.size(), rows);
         scroll = Math.max(0, Math.min(scroll, Math.max(0, list.size() - rows)));
         bar.draw(g, x + w + 1, y + LIST, rows * ROWH - 1, list.size(), rows, scroll, mx, my);
         if (list.isEmpty()) g.text("Nothing saved here yet.", x + 4, y + LIST + 5, Ui.DIM);
-        for (int i = 0; i < rows && scroll + i < list.size(); i++) {
-            Teleports.Loc l = list.get(scroll + i);
+        List<Teleports.Loc> shown = list;
+        if (dragged != null && list.contains(dragged)) {   // open a gap where the dragged row would land
+            shown = new java.util.ArrayList<>(list);
+            shown.remove(dragged);
+            shown.add(target(list.size()), dragged);
+        }
+        for (int i = 0; i < rows && scroll + i < shown.size(); i++) {
+            Teleports.Loc l = shown.get(scroll + i);
             int ry = y + LIST + i * ROWH;
-            Ui.rr(g, x, ry, w, ROWH - 1, Ui.in(mx, my, x, ry, w, ROWH - 1) ? Ui.HOVER : Ui.BTN);
-            String c = l.coords();
-            int cxr = goX() - 8 - g.width(c);
-            Ui.label(g, l.name(), x + 5, ry + 5, cxr - x - 14, Ui.TEXT);
-            g.text(c, cxr, ry + 5, Ui.DIM);
-            Ui.button(g, "Go", goX(), ry, BTN, ROWH - 1, Ui.in(mx, my, goX(), ry, BTN, ROWH - 1), false);
-            Ui.button(g, "Rename", renX(), ry, BTN, ROWH - 1, Ui.in(mx, my, renX(), ry, BTN, ROWH - 1), false);
-            Ui.button(g, l.equals(armed) ? "Sure?" : "Delete", delX(), ry, BTN, ROWH - 1, Ui.in(mx, my, delX(), ry, BTN, ROWH - 1), true);
+            if (l == dragged) Ui.rr(g, x, ry, w, ROWH - 1, Ui.DARK);
+            else drawRow(g, l, ry, mx, my, false);
+        }
+        if (dragged != null) {   // the row itself follows the mouse, kept inside the list
+            int ry = Math.max(y + LIST, Math.min(y + LIST + (rows - 1) * ROWH, dragMy - grabOff));
+            drawRow(g, dragged, ry, -1, -1, true);
         }
 
         LocalPlayer p = Minecraft.getInstance().player;
         if (p != null)
             g.text("You: " + Teleports.dimName(here) + "  " + (int) Math.floor(p.getX()) + ", " + (int) Math.floor(p.getY()) + ", "
                     + (int) Math.floor(p.getZ()) + "     Rename uses the typed name.", x, y + h - 9, Ui.DIM);
+    }
+
+    private void drawRow(Gfx g, Teleports.Loc l, int ry, int mx, int my, boolean lifted) {
+        Ui.rr(g, x, ry, w, ROWH - 1, lifted ? Ui.SEL : Ui.in(mx, my, x, ry, w, ROWH - 1) ? Ui.HOVER : Ui.BTN);
+        for (int k = 0; k < 3; k++) g.fill(x + 5, ry + 5 + k * 3, x + 11, ry + 6 + k * 3, Ui.DIM);   // grip
+        String c = l.coords();
+        int cxr = goX() - 8 - g.width(c);
+        Ui.label(g, l.name(), x + 16, ry + 5, cxr - x - 24, Ui.TEXT);
+        g.text(c, cxr, ry + 5, Ui.DIM);
+        Ui.button(g, "Go", goX(), ry, BTN, ROWH - 1, Ui.in(mx, my, goX(), ry, BTN, ROWH - 1), false);
+        Ui.button(g, "Rename", renX(), ry, BTN, ROWH - 1, Ui.in(mx, my, renX(), ry, BTN, ROWH - 1), false);
+        Ui.button(g, l.equals(armed) ? "Sure?" : "Delete", delX(), ry, BTN, ROWH - 1, Ui.in(mx, my, delX(), ry, BTN, ROWH - 1), true);
+    }
+
+    /** Index in the list where the dragged row would be dropped. */
+    private int target(int size) {
+        int top = dragMy - grabOff + ROWH / 2 - (y + LIST);
+        return Math.max(0, Math.min(size - 1, Math.floorDiv(top, ROWH) + scroll));
+    }
+
+    /** Holding a dragged row at the top / bottom edge scrolls the list. */
+    private void autoScroll(int size, int rows) {
+        long now = System.currentTimeMillis();
+        if (now - lastAutoScroll < 120) return;
+        if (dragMy < y + LIST + 6 && scroll > 0) { scroll--; lastAutoScroll = now; }
+        else if (dragMy > y + LIST + rows * ROWH - 6 && scroll < size - rows) { scroll++; lastAutoScroll = now; }
     }
 
     private void saveHere() {
@@ -110,6 +145,12 @@ public final class TeleportPage implements Page {
                 if (l.equals(wasArmed)) Teleports.remove(l); else armed = l;
                 return true;
             }
+            if (Ui.in(mx, my, x, ry, goX() - x, ROWH - 1) && list.size() > 1) {   // grab the row (anywhere left of the buttons)
+                dragged = l;
+                grabOff = my - ry;
+                dragMy = my;
+                return true;
+            }
         }
         return false;
     }
@@ -117,8 +158,22 @@ public final class TeleportPage implements Page {
     @Override
     public boolean scroll(int mx, int my, double dy) { scroll -= (int) Math.signum(dy); return true; }
 
-    @Override public boolean drag(int mx, int my) { if (!bar.dragging()) return false; scroll = bar.at(my); return true; }
-    @Override public void release() { bar.release(); }
+    @Override
+    public boolean drag(int mx, int my) {
+        if (dragged != null) { dragMy = my; return true; }
+        if (!bar.dragging()) return false;
+        scroll = bar.at(my);
+        return true;
+    }
+
+    @Override
+    public void release() {
+        bar.release();
+        if (dragged == null) return;
+        List<Teleports.Loc> list = Teleports.list(dim);
+        if (list.contains(dragged)) Teleports.move(dragged, target(list.size()));
+        dragged = null;
+    }
 
     @Override
     public boolean key(int key, int scan, int mods) {

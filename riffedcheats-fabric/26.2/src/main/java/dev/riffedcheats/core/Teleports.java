@@ -83,6 +83,19 @@ public final class Teleports {
 
     public static void remove(Loc l) { all().remove(l); save(); }
 
+    /** Moves a spot to position index within its world + dimension list (the order you see and save). */
+    public static void move(Loc l, int index) {
+        List<Loc> a = all();
+        if (!a.remove(l)) return;
+        List<Loc> same = new ArrayList<>();
+        for (Loc o : a) if (o.world().equals(l.world()) && o.dim().equals(l.dim())) same.add(o);
+        index = Math.max(0, Math.min(index, same.size()));
+        if (index < same.size()) a.add(a.indexOf(same.get(index)), l);           // in front of the one now at that place
+        else if (same.isEmpty()) a.add(l);
+        else a.add(a.indexOf(same.get(same.size() - 1)) + 1, l);                 // after the last one
+        save();
+    }
+
     public static void rename(Loc l, String name) {
         int i = all().indexOf(l);
         if (i < 0 || clean(name).isEmpty()) return;
