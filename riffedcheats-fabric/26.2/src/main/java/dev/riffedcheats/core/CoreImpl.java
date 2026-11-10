@@ -26,6 +26,7 @@ public final class CoreImpl implements Core {
             Projector pj = new Projector(mc);
             Wallhack.render(gfx, pj);
             Aimbot.drawFov(gfx, pj);
+            Aimbot.drawStatus(gfx, pj);
             Waypoints.render(gfx, pj);
         } catch (Throwable t) {
             if (!hudFailed) { hudFailed = true; System.err.println("[RiffedCheats] HUD drawing failed:"); t.printStackTrace(); }

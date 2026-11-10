@@ -166,6 +166,21 @@ public final class Aimbot {
         p.setXRot(pitch);
     }
 
+    /** "Aimbot: ON" / "Aimbot: OFF" on the HUD, with the current target's name while locked on. */
+    static void drawStatus(Gfx g, Projector pj) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer p = mc.player;
+        if (p == null || !AIM_ON.active() || !AIM_STATUS.on || Compat.hudHidden()) return;
+        boolean on = aiming(p);
+        String s = "Aimbot: " + (on ? "ON" : "OFF");
+        if (on && target != null) s += " - " + target.getDisplayName().getString();
+        int tw = g.width(s), pos = AIM_STATUS_POS.intValue();
+        int x = pos == 0 ? 4 : pos == 1 ? pj.w - tw - 4 : (pj.w - tw) / 2;
+        int y = pos == 0 ? 4 : pos == 1 ? 16 : pj.h / 2 + 12;      // Top Right starts below where an FPS counter usually sits
+        g.fill(x - 2, y - 2, x + tw + 2, y + 9, 0x70000000);
+        g.text(s, x, y, on ? 0xFF5AE08A : 0xFFFF7A7A);
+    }
+
     /** The circle that shows Aimbot's field of view. */
     static void drawFov(Gfx g, Projector pj) {
         if (!AIM_ON.active() || !AIM_SHOW_FOV.on || AIM_FOV.value >= 170) return;

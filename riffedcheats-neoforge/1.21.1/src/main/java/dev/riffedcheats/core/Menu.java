@@ -172,6 +172,8 @@ public final class Menu {
     public static final Setting AIM_SPARE = opt("Spare Named Mobs + Pets", true, "aim.spare"), AIM_INVIS = opt("Ignore Invisible", false, "aim.invis");
     public static final Setting AIM_SHOW_FOV = opt("Show Field of View Circle", false, "aim.showfov");
     public static final Setting AIM_CUSTOM = opt("Use Custom Mobs", false, "aim.custom");
+    public static final Setting AIM_STATUS = opt("Show On / Off Text", true, "aim.status");
+    public static final Setting AIM_STATUS_POS = pick("Text Position", 0, "aim.statuspos", "Top Left", "Top Right", "Crosshair");
 
     // ---------------- Items > Helpers ----------------
     public static final Setting AUTO_REPAIR = t("Auto Repair Gear", false).needsServer();
@@ -232,7 +234,7 @@ public final class Menu {
         cat("Aimbot",
             tab("Main", AIM_ON, AIM_HOSTILE, AIM_FRIENDLY, AIM_PLAYERS, AIM_KEYMODE, AIM_BONE, AIM_RANGE, AIM_FOV, AIM_SMOOTH,
                 lab("Default key: V. Change it in Options > Controls > Key Binds > RiffedCheats.")),
-            tab("Advanced", AIM_PRIORITY, AIM_WALLS, AIM_STICKY, AIM_AUTOHIT, AIM_BOW, AIM_LEAD, AIM_TEAM, AIM_SPARE, AIM_INVIS, AIM_SHOW_FOV),
+            tab("Advanced", AIM_PRIORITY, AIM_WALLS, AIM_STICKY, AIM_AUTOHIT, AIM_BOW, AIM_LEAD, AIM_TEAM, AIM_SPARE, AIM_INVIS, AIM_SHOW_FOV, AIM_STATUS, AIM_STATUS_POS),
             page("Custom Mobs", new MobListPage("aim_custom", AIM_CUSTOM)));
 
         cat("World",
