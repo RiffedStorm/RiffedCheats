@@ -73,7 +73,7 @@ public final class Aimbot {
     }
 
     private static double score(LocalPlayer p, Vec3 eye, Entity e, double y) {
-        return switch (AIM_PRIORITY.intValue()) {
+        return switch ((ranged(p) ? AIM_PRIORITY_BOW : AIM_PRIORITY).intValue()) {
             case 1 -> p.distanceToSqr(e);
             case 2 -> e instanceof LivingEntity l ? l.getHealth() : Double.MAX_VALUE;
             default -> offAngle(p, eye, e, y);
