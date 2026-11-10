@@ -168,6 +168,7 @@ public final class Menu {
     public static final Setting AIM_SMOOTH = num("Smoothness %", 0, 95, 5, 30, "aim.smooth");
     public static final Setting AIM_PRIORITY = pick("Melee Priority", 0, "aim.priority", "Crosshair", "Closest", "Low Health");
     public static final Setting AIM_PRIORITY_BOW = pick("Bow Priority", 0, "aim.prioritybow", "Crosshair", "Closest", "Low Health");
+    public static final Setting AIM_CLOSEST_ALL = opt("Closest Ignores Field of View", false, "aim.closestall");
     public static final Setting AIM_WALLS = opt("Aim Through Walls", false, "aim.walls"), AIM_STICKY = opt("Stay On Target", true, "aim.sticky");
     public static final Setting AIM_AUTOHIT = opt("Auto Attack", false, "aim.autohit"), AIM_BOW = opt("Bow + Trident Prediction", true, "aim.bow");
     public static final Setting AIM_LEAD = opt("Lead Moving Targets", true, "aim.lead"), AIM_TEAM = opt("Ignore Teammates", true, "aim.team");
@@ -236,7 +237,7 @@ public final class Menu {
         cat("Aimbot",
             tab("Main", AIM_ON, AIM_HOSTILE, AIM_FRIENDLY, AIM_PLAYERS, AIM_KEYMODE, AIM_BONE, AIM_RANGE, AIM_RANGE_BOW, AIM_FOV, AIM_SMOOTH,
                 lab("Default key: V. Change it in Options > Controls > Key Binds > RiffedCheats.")),
-            tab("Advanced", AIM_PRIORITY, AIM_PRIORITY_BOW, AIM_WALLS, AIM_STICKY, AIM_AUTOHIT, AIM_BOW, AIM_LEAD, AIM_TEAM, AIM_SPARE, AIM_INVIS, AIM_SHOW_FOV, AIM_STATUS, AIM_STATUS_POS),
+            tab("Advanced", AIM_PRIORITY, AIM_PRIORITY_BOW, AIM_CLOSEST_ALL, AIM_WALLS, AIM_STICKY, AIM_AUTOHIT, AIM_BOW, AIM_LEAD, AIM_TEAM, AIM_SPARE, AIM_INVIS, AIM_SHOW_FOV, AIM_STATUS, AIM_STATUS_POS),
             page("Custom Mobs", new MobListPage("aim_custom", AIM_CUSTOM)));
 
         cat("World",

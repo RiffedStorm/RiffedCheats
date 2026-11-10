@@ -94,8 +94,11 @@ public final class Aimbot {
         return Math.hypot(Mth.wrapDegrees(a[0] - p.getYRot()), a[1] - p.getXRot());
     }
 
+    /** 0 = crosshair, 1 = closest, 2 = low health, for the weapon in your hand. */
+    private static int priority(LocalPlayer p) { return (ranged(p) ? AIM_PRIORITY_BOW : AIM_PRIORITY).intValue(); }
+
     private static double score(LocalPlayer p, Vec3 eye, Entity e, double y) {
-        return switch ((ranged(p) ? AIM_PRIORITY_BOW : AIM_PRIORITY).intValue()) {
+        return switch (priority(p)) {
             case 1 -> p.distanceToSqr(e);
             case 2 -> e instanceof LivingEntity l ? l.getHealth() : Double.MAX_VALUE;
             default -> offAngle(p, eye, e, y);
@@ -119,7 +122,7 @@ public final class Aimbot {
         }
 
         if (!aiming(p)) { target = null; return; }
-        double cone = AIM_FOV.value >= 355 ? Double.MAX_VALUE : AIM_FOV.value / 2.0;
+        double cone = AIM_FOV.value >= 355 || (AIM_CLOSEST_ALL.on && priority(p) == 1) ? Double.MAX_VALUE : AIM_FOV.value / 2.0;
         boolean keep = AIM_STICKY.on && target != null && HITTABLE.containsKey(target.getId())
                 && offAngle(p, eye, target, HITTABLE.get(target.getId())) <= cone;
         if (!keep) {
