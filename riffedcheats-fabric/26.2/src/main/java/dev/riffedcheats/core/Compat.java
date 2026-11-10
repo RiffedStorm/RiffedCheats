@@ -503,6 +503,16 @@ public final class Compat {
                 || e instanceof net.minecraft.world.entity.animal.equine.AbstractHorse h && h.isTamed();
     }
 
+    public static float partial() { return mc().getDeltaTracker().getGameTimeDeltaPartialTick(true); }
+    public static boolean screenOpen() { return mc().gui.screen() != null; }
+
+    /** View bobbing right now: walk phase, strength. Null when it is off. */
+    public static double[] bob() {
+        if (!mc().options.bobView().get() || !(mc().getCameraEntity() instanceof net.minecraft.client.player.AbstractClientPlayer pl)) return null;
+        float pt = partial();
+        return new double[] { pl.avatarState().getBackwardsInterpolatedWalkDistance(pt), pl.avatarState().getInterpolatedBob(pt) };
+    }
+
     /** F1 is hiding the HUD. */
     public static boolean hudHidden() { return mc().gui.hud.isHidden(); }
 

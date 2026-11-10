@@ -28,6 +28,10 @@ public class RiffedCheats {
     public static final KeyMapping TOGGLE = new KeyMapping(
             "key.riffedcheats.toggle_menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_INSERT, "key.categories.riffedcheats");
 
+    /** Options > Controls > Key Binds > RiffedCheats. Default: V. */
+    public static final KeyMapping AIM = new KeyMapping(
+            "key.riffedcheats.aimbot", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, "key.categories.riffedcheats");
+
     public RiffedCheats(IEventBus modBus) {
         modBus.addListener(this::registerKeys);
         NeoForge.EVENT_BUS.addListener(this::onTick);
@@ -40,7 +44,7 @@ public class RiffedCheats {
         Loader.init(jar);
     }
 
-    private void registerKeys(RegisterKeyMappingsEvent e) { e.register(TOGGLE); }
+    private void registerKeys(RegisterKeyMappingsEvent e) { e.register(TOGGLE); e.register(AIM); }
 
     private void onTick(ClientTickEvent.Post e) {
         Minecraft mc = Minecraft.getInstance();

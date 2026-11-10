@@ -14,7 +14,7 @@ public final class Loader {
     private static final String CORE = "dev.riffedcheats.core.";
 
     /** Bump when Core / Loader / the entry point change in a way an old copy cannot serve. */
-    public static int api() { return 3; }
+    public static int api() { return 4; }
 
     private static volatile Core core;
     private static Path jar;   // jar the running core came from; null = dev build (no hot swap)

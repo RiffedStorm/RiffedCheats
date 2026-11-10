@@ -397,6 +397,16 @@ public final class Compat {
                 || e instanceof net.minecraft.world.entity.animal.horse.AbstractHorse h && h.isTamed();
     }
 
+    public static float partial() { return mc().getTimer().getGameTimeDeltaPartialTick(true); }
+    public static boolean screenOpen() { return mc().screen != null; }
+
+    /** View bobbing right now: walk phase, strength. Null when it is off. */
+    public static double[] bob() {
+        if (!mc().options.bobView().get() || !(mc().getCameraEntity() instanceof net.minecraft.world.entity.player.Player pl)) return null;
+        float pt = partial();
+        return new double[] { -(pl.walkDist + (pl.walkDist - pl.walkDistO) * pt), net.minecraft.util.Mth.lerp(pt, pl.oBob, pl.bob) };
+    }
+
     /** F1 is hiding the HUD. */
     public static boolean hudHidden() { return mc().options.hideGui; }
 

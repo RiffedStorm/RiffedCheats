@@ -25,12 +25,16 @@ public class RiffedCheats implements ClientModInitializer {
 
     /** Options > Controls > Key Binds > RiffedCheats. Default: Insert. */
     public static KeyMapping TOGGLE;
+    /** Options > Controls > Key Binds > RiffedCheats. Default: V. */
+    public static KeyMapping AIM;
 
     @Override
     public void onInitializeClient() {
         KeyMapping.Category category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MODID, "main"));
         TOGGLE = KeyMappingHelper.registerKeyMapping(new KeyMapping(
                 "key.riffedcheats.toggle_menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_INSERT, category));
+        AIM = KeyMappingHelper.registerKeyMapping(new KeyMapping(
+                "key.riffedcheats.aimbot", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_V, category));
 
         Path jar = null;
         try {

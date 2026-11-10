@@ -73,6 +73,7 @@ public final class Features {
         if (p != lastPlayer) { onNewPlayer(); lastPlayer = p; }
 
         Teleports.tick(p);
+        Aimbot.tick(p, level, mc);
         client(p, level, mc);
         if (Access.allowed) {
             Cmd.tick();
@@ -167,6 +168,7 @@ public final class Features {
         Cmd.clear();
         Rules.clear();
         Inventories.clear();
+        Aimbot.reset();
     }
 
     // ---------------- client-side features ----------------

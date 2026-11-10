@@ -52,6 +52,8 @@ You only need it on your own PC. Installing the **same jar on a server** is opti
 | **Self** | God Mode, Auto Heal, Infinite Hunger, No Fall Damage, Fullbright, Kill Myself, gamemode, set your spawnpoint where you stand, heal / clear effects / clear inventory, **inventory editor** (items, counts, enchantments, repair, rename, unbreakable and back, **infinite items**), Flight (+ speed), **Noclip** (Server Mode), Walk Speed, High Jump, Step Assist, Low Gravity, Infinite Jump, Auto Sprint, Extended Reach, 11 more potion effects with level sliders |
 | **XP / Level** | Set any level, **freeze** it (checked every tick, a command is only sent when the level really changes, so no lag) |
 | **Combat** | Kill Aura, **Always Crit** (works on the ground, no jumping), **No Attack Delay** (spam full-damage hits), Anti-Knockback (also explosions), **Instant Shield Block** and **No Shield Cooldown** (Server Mode) |
+| **Wallhack** | 2D boxes and health bars through walls, with Hostile / Friendly / Players presets, your own mob list, names, distance, tracers, and "only if Aimbot can hit" |
+| **Aimbot** | Rebindable key (hold, toggle or always on), the same presets and mob list, head / body / feet, range, field of view, smoothness, target priority, auto attack, bow and trident prediction |
 | **World** | Time (skips *forward*, so the day counter never resets), weather, difficulty, **live game rule switches** (green ON / red OFF); **ProtoManly's Weather** storms when that mod is installed |
 | **Teleport** | **Saved locations** with names, per world / server and per dimension (teleports work across dimensions), **on-screen markers** with distance, **teleport to your last death**, world spawn, quick up / down / sky |
 | **Items** | **Item spawner** with search + big icon preview on hover, enchantment editor, count, *Infinite Durability*, over-max enchant levels, search that also reads tooltips, starred favorites you can sort; **God Armor** and **God Tools** in one click |
@@ -105,6 +107,7 @@ The check is live. If an admin runs `/deop <you>` the menu locks itself immediat
 | Action | Default |
 |---|---|
 | Show / hide the menu | **Insert** |
+| Aimbot | **V** |
 
 Change it any time in **Options → Controls → Key Binds → RiffedCheats**.
 

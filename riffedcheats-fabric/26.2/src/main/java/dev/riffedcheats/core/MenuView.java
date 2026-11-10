@@ -117,6 +117,14 @@ public final class MenuView {
             }
             return;
         }
+        if (s.kind == Setting.Kind.CHOICE) {
+            g.text(Ui.fit(g, s.name, LBL - 12), BX + 8, ry + 6, Ui.TEXT);
+            for (int i = 0; i < s.opts.length; i++) {
+                int bx = optX(s, i), bw = optW(s);
+                Ui.selButton(g, s.opts[i], bx, ry, bw, ROW, Ui.in(mx, my, bx, ry, bw, ROW), s.intValue() == i);
+            }
+            return;
+        }
         if (s.kind == Setting.Kind.RULE) {
             g.text(Ui.fit(g, s.name, BW - 110), BX + 8, ry + 6, Ui.TEXT);
             Boolean v = Rules.get(s.opts[0]);
@@ -223,6 +231,10 @@ public final class MenuView {
                     else if (mx >= trackX() - 4) { dragging = s; setSlider(s, mx); }
                 }
                 case RULE -> { if (mx >= BX + BW - 90) Rules.flip(s.opts[0]); }
+                case CHOICE -> {
+                    for (int k = 0; k < s.opts.length; k++)
+                        if (Ui.in(mx, my, optX(s, k), ry, optW(s), ROW)) { s.value = k; Menu.changed(); break; }
+                }
                 default -> {}
             }
             return false;

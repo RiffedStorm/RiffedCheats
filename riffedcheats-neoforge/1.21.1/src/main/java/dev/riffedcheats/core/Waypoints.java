@@ -8,30 +8,15 @@ import net.minecraft.client.player.LocalPlayer;
 public final class Waypoints {
     private static final int COLOR = 0xFF6CE0B0;
 
-    public static void render(Gfx g) {
+    static void render(Gfx g, Projector pj) {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player;
         if (p == null || mc.level == null || !Access.allowed || Compat.hudHidden()) return;
         List<Teleports.Loc> list = Teleports.waypoints();
-        if (list.isEmpty()) return;
-
-        double[] cam = Compat.camera();      // x, y, z, yaw, pitch
-        double yaw = Math.toRadians(cam[3]), pitch = Math.toRadians(cam[4]);
-        double fx = -Math.sin(yaw) * Math.cos(pitch), fy = -Math.sin(pitch), fz = Math.cos(yaw) * Math.cos(pitch);
-        double rx = -Math.cos(yaw), rz = -Math.sin(yaw);
-        double ux = -rz * fy, uy = rz * fx - rx * fz, uz = rx * fy;          // up = right x forward
-
-        int w = mc.getWindow().getGuiScaledWidth(), h = mc.getWindow().getGuiScaledHeight();
-        double scale = (h / 2.0) / Math.tan(Math.toRadians(Compat.fov()) / 2.0);
-
         for (Teleports.Loc l : list) {
-            double dx = l.x() - cam[0], dy = l.y() + 1 - cam[1], dz = l.z() - cam[2];
-            double z = dx * fx + dy * fy + dz * fz;
-            if (z < 0.1) continue;      // behind you
-            int sx = (int) Math.round(w / 2.0 + (dx * rx + dz * rz) / z * scale);
-            int sy = (int) Math.round(h / 2.0 - (dx * ux + dy * uy + dz * uz) / z * scale);
-            if (sx < -40 || sx > w + 40 || sy < -40 || sy > h + 40) continue;
-            draw(g, sx, sy, l.name(), Math.sqrt(p.distanceToSqr(l.x(), l.y(), l.z())));
+            double[] s = pj.project(l.x(), l.y() + 1, l.z());
+            if (s == null || s[0] < -40 || s[0] > pj.w + 40 || s[1] < -40 || s[1] > pj.h + 40) continue;
+            draw(g, (int) Math.round(s[0]), (int) Math.round(s[1]), l.name(), Math.sqrt(p.distanceToSqr(l.x(), l.y(), l.z())));
         }
     }
 

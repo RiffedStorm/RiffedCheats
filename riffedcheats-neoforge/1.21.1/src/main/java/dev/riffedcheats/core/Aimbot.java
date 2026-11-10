@@ -1,0 +1,179 @@
+package dev.riffedcheats.core;
+
+import static dev.riffedcheats.core.Menu.*;
+
+import dev.riffedcheats.RiffedCheats;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.BowItem;
+import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TridentItem;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+
+/** Turns your view toward the best target. Targets are picked every tick; the view moves every frame so it stays smooth. */
+public final class Aimbot {
+    private static final Map<Integer, Double> HITTABLE = new HashMap<>();   // entity id -> height of the point to aim at
+    private static Entity target;
+    private static boolean toggled;
+    private static long lastFrame;
+
+    static void reset() { target = null; HITTABLE.clear(); }
+
+    /** Wallhack's "only if Aimbot can hit": what Aimbot would accept right now, wherever you are looking. */
+    static boolean canHit(Entity e) { return HITTABLE.containsKey(e.getId()); }
+    static boolean isTarget(Entity e) { return e == target; }
+
+    private static boolean aiming(LocalPlayer p) {
+        if (!AIM_ON.active() || !p.isAlive() || p.isSpectator()) return false;
+        return switch (AIM_KEYMODE.intValue()) {
+            case 1 -> toggled;
+            case 2 -> true;
+            default -> RiffedCheats.AIM.isDown();
+        };
+    }
+
+    private static boolean clear(ClientLevel level, LocalPlayer p, Vec3 eye, Entity e, double y) {
+        Vec3 to = new Vec3(e.getX(), e.getY() + y, e.getZ());
+        return level.clip(new ClipContext(eye, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, p)).getType() == HitResult.Type.MISS;
+    }
+
+    /** Height above the feet to aim at: the chosen spot if it can be seen, else any other that can. NaN when none can. */
+    private static double aimPoint(ClientLevel level, LocalPlayer p, Vec3 eye, Entity e) {
+        double[] points = { e.getEyeHeight(), e.getBbHeight() * 0.5, e.getBbHeight() * 0.1 };
+        int first = AIM_BONE.intValue();
+        if (AIM_WALLS.on) return points[first];
+        for (int i = 0; i < 3; i++) {
+            double y = points[(first + i) % 3];
+            if (clear(level, p, eye, e, y)) return y;
+        }
+        return Double.NaN;
+    }
+
+    private static double[] angles(LocalPlayer p, Vec3 from, double x, double y, double z) {
+        double dx = x - from.x, dy = y - from.y, dz = z - from.z;
+        return new double[] { Math.toDegrees(Math.atan2(dz, dx)) - 90.0, -Math.toDegrees(Math.atan2(dy, Math.sqrt(dx * dx + dz * dz))) };
+    }
+
+    private static double offAngle(LocalPlayer p, Vec3 eye, Entity e, double y) {
+        double[] a = angles(p, eye, e.getX(), e.getY() + y, e.getZ());
+        return Math.hypot(Mth.wrapDegrees(a[0] - p.getYRot()), a[1] - p.getXRot());
+    }
+
+    private static double score(LocalPlayer p, Vec3 eye, Entity e, double y) {
+        return switch (AIM_PRIORITY.intValue()) {
+            case 1 -> p.distanceToSqr(e);
+            case 2 -> e instanceof LivingEntity l ? l.getHealth() : Double.MAX_VALUE;
+            default -> offAngle(p, eye, e, y);
+        };
+    }
+
+    /** Every client tick. */
+    static void tick(LocalPlayer p, ClientLevel level, Minecraft mc) {
+        while (RiffedCheats.AIM.consumeClick()) if (AIM_KEYMODE.intValue() == 1) toggled = !toggled;
+        HITTABLE.clear();
+        if (!AIM_ON.active() && !(ESP_ON.active() && ESP_CANHIT.on)) { target = null; return; }
+
+        Set<String> custom = AIM_CUSTOM.on ? Targets.list("aim_custom") : Set.of();
+        Vec3 eye = p.getEyePosition();
+        double r2 = AIM_RANGE.value * AIM_RANGE.value;
+        for (Entity e : Compat.entities(level)) {
+            if (p.distanceToSqr(e) > r2 || !Targets.selected(e, AIM_HOSTILE.on, AIM_FRIENDLY.on, AIM_PLAYERS.on, custom)) continue;
+            if (!Targets.allowed(e, p, AIM_TEAM.on, AIM_SPARE.on, AIM_INVIS.on)) continue;
+            double y = aimPoint(level, p, eye, e);
+            if (!Double.isNaN(y)) HITTABLE.put(e.getId(), y);
+        }
+
+        if (!aiming(p)) { target = null; return; }
+        double cone = AIM_FOV.value >= 355 ? Double.MAX_VALUE : AIM_FOV.value / 2.0;
+        boolean keep = AIM_STICKY.on && target != null && HITTABLE.containsKey(target.getId())
+                && offAngle(p, eye, target, HITTABLE.get(target.getId())) <= cone;
+        if (!keep) {
+            Entity best = null;
+            double bestScore = Double.MAX_VALUE;
+            for (Entity e : Compat.entities(level)) {
+                Double y = HITTABLE.get(e.getId());
+                if (y == null || offAngle(p, eye, e, y) > cone) continue;
+                double s = score(p, eye, e, y);
+                if (s < bestScore) { bestScore = s; best = e; }
+            }
+            target = best;
+        }
+
+        if (target != null && AIM_AUTOHIT.on && target instanceof LivingEntity && p.getAttackStrengthScale(0.5f) >= 1f
+                && mc.hitResult instanceof EntityHitResult hit && hit.getEntity() == target) {
+            Features.preAttack(p);
+            Compat.attack(target);
+            p.swing(InteractionHand.MAIN_HAND);
+        }
+        if (System.currentTimeMillis() - lastFrame > 100) frame();      // the HUD is not being drawn (F1)
+    }
+
+    /** Arrow speed of what you are using, 0 for anything that is not a projectile weapon. */
+    private static double projectileSpeed(LocalPlayer p) {
+        ItemStack use = p.isUsingItem() ? p.getUseItem() : ItemStack.EMPTY;
+        if (use.getItem() instanceof BowItem) return Math.max(0.3, BowItem.getPowerForTime(p.getTicksUsingItem()) * 3.0);
+        if (use.getItem() instanceof TridentItem) return 2.5;
+        return p.getMainHandItem().getItem() instanceof CrossbowItem ? 3.15 : 0;
+    }
+
+    /** Every frame: moves your view part of the way to the target. */
+    static void frame() {
+        long now = System.currentTimeMillis();
+        double dt = Math.min(0.05, (now - lastFrame) / 1000.0);
+        lastFrame = now;
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer p = mc.player;
+        if (p == null || target == null || Compat.screenOpen() || !aiming(p)) return;
+        if (!target.isAlive() || target.isRemoved()) { target = null; return; }
+        Double h = HITTABLE.get(target.getId());
+        if (h == null) return;
+
+        float pt = Compat.partial();
+        Vec3 eye = p.getEyePosition(pt);
+        double vx = target.getX() - target.xo, vy = target.getY() - target.yo, vz = target.getZ() - target.zo;
+        double x = Mth.lerp(pt, target.xo, target.getX()), y = Mth.lerp(pt, target.yo, target.getY()) + h, z = Mth.lerp(pt, target.zo, target.getZ());
+
+        double speed = AIM_BOW.on ? projectileSpeed(p) : 0;
+        if (speed > 0) {
+            double t = 0, ax = x, ay = y, az = z;
+            for (int i = 0; i < 3; i++) {       // where it will be when the arrow arrives, and how far the arrow will have dropped
+                t = Math.sqrt(eye.distanceToSqr(ax, ay, az)) / speed;
+                ax = x + vx * t; ay = y + vy * t; az = z + vz * t;
+            }
+            x = ax; y = ay + 0.025 * t * t; z = az;
+        } else if (AIM_LEAD.on) { x += vx; y += vy; z += vz; }
+
+        double[] a = angles(p, eye, x, y, z);
+        double dy = Mth.wrapDegrees(a[0] - p.getYRot()), dp = a[1] - p.getXRot();
+        double s = AIM_SMOOTH.value / 100.0;
+        double k = s <= 0 ? 1 : 1 - Math.exp(-dt * (40 * (1 - s) + 2));
+        float yaw = (float) (p.getYRot() + dy * k), pitch = Mth.clamp((float) (p.getXRot() + dp * k), -90f, 90f);
+        p.yRotO += yaw - p.getYRot();
+        p.xRotO += pitch - p.getXRot();
+        p.setYRot(yaw);
+        p.setXRot(pitch);
+    }
+
+    /** The circle that shows Aimbot's field of view. */
+    static void drawFov(Gfx g, Projector pj) {
+        if (!AIM_ON.active() || !AIM_SHOW_FOV.on || AIM_FOV.value >= 170) return;
+        double r = Math.tan(Math.toRadians(AIM_FOV.value / 2.0)) * pj.scale;
+        int n = (int) Math.max(32, r * 2);
+        for (int i = 0; i < n; i++) {
+            int x = (int) Math.round(pj.w / 2.0 + Math.cos(i * 2 * Math.PI / n) * r), y = (int) Math.round(pj.h / 2.0 + Math.sin(i * 2 * Math.PI / n) * r);
+            g.fill(x, y, x + 1, y + 1, 0x80FFFFFF);
+        }
+    }
+}

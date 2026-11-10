@@ -140,6 +140,39 @@ public final class Menu {
     public static final Setting KILL_NAMED = t("Kill Field: Spare Named", true);
     public static final Setting KILL_PETS = t("Kill Field: Spare Pets", true);
 
+    private static Setting opt(String n, boolean d, String id) { return t(n, d).option(id); }
+    private static Setting num(String n, float min, float max, float step, float d, String id) { return s(n, min, max, step, d).option(id); }
+    private static Setting pick(String n, int d, String id, String... o) { Setting c = Setting.choice(n, d, o).option(id); ALL.add(c); return c; }
+
+    // ---------------- Wallhack ----------------
+    public static final Setting ESP_ON = t("Wallhack", false);
+    public static final Setting ESP_HOSTILE = opt("Hostile Mobs", true, "esp.hostile"), ESP_FRIENDLY = opt("Friendly Mobs", false, "esp.friendly"), ESP_PLAYERS = opt("Players", true, "esp.players");
+    public static final Setting ESP_BOX = opt("2D Boxes", true, "esp.box"), ESP_HEALTH = opt("Health Bars", true, "esp.health");
+    public static final Setting ESP_NAMES = opt("Names", true, "esp.names"), ESP_DIST = opt("Distance", false, "esp.dist");
+    public static final Setting ESP_RANGE = num("Range", 8, 256, 8, 64, "esp.range");
+    public static final Setting ESP_CANHIT = opt("Only If Aimbot Can Hit", false, "esp.canhit");
+    public static final Setting ESP_TRACERS = opt("Tracer Lines", false, "esp.tracers"), ESP_HP_TEXT = opt("Health Numbers", false, "esp.hptext");
+    public static final Setting ESP_INVIS = opt("Show Invisible", true, "esp.invis"), ESP_TEAM = opt("Hide Teammates", false, "esp.team");
+    public static final Setting ESP_SPARE = opt("Hide Named Mobs + Pets", false, "esp.spare");
+    public static final Setting ESP_THICK = num("Box Thickness", 1, 3, 1, 1, "esp.thick");
+    public static final Setting ESP_CUSTOM = opt("Use Custom Mobs", false, "esp.custom");
+
+    // ---------------- Aimbot ----------------
+    public static final Setting AIM_ON = t("Aimbot", false);
+    public static final Setting AIM_HOSTILE = opt("Hostile Mobs", true, "aim.hostile"), AIM_FRIENDLY = opt("Friendly Mobs", false, "aim.friendly"), AIM_PLAYERS = opt("Players", false, "aim.players");
+    public static final Setting AIM_KEYMODE = pick("Key", 0, "aim.keymode", "Hold", "Toggle", "Always On");
+    public static final Setting AIM_BONE = pick("Aim At", 1, "aim.bone", "Head", "Body", "Feet");
+    public static final Setting AIM_RANGE = num("Range", 4, 128, 2, 32, "aim.range");
+    public static final Setting AIM_FOV = num("Field of View", 5, 360, 5, 90, "aim.fov");
+    public static final Setting AIM_SMOOTH = num("Smoothness %", 0, 95, 5, 30, "aim.smooth");
+    public static final Setting AIM_PRIORITY = pick("Priority", 0, "aim.priority", "Crosshair", "Closest", "Low Health");
+    public static final Setting AIM_WALLS = opt("Aim Through Walls", false, "aim.walls"), AIM_STICKY = opt("Stay On Target", true, "aim.sticky");
+    public static final Setting AIM_AUTOHIT = opt("Auto Attack", false, "aim.autohit"), AIM_BOW = opt("Bow + Trident Prediction", true, "aim.bow");
+    public static final Setting AIM_LEAD = opt("Lead Moving Targets", true, "aim.lead"), AIM_TEAM = opt("Ignore Teammates", true, "aim.team");
+    public static final Setting AIM_SPARE = opt("Spare Named Mobs + Pets", true, "aim.spare"), AIM_INVIS = opt("Ignore Invisible", false, "aim.invis");
+    public static final Setting AIM_SHOW_FOV = opt("Show Field of View Circle", false, "aim.showfov");
+    public static final Setting AIM_CUSTOM = opt("Use Custom Mobs", false, "aim.custom");
+
     // ---------------- Items > Helpers ----------------
     public static final Setting AUTO_REPAIR = t("Auto Repair Gear", false).needsServer();
     public static final Setting MAGNET = t("Item + XP Magnet", false).needsServer();
@@ -188,6 +221,19 @@ public final class Menu {
             tab("Shield", INSTANT_BLOCK, NO_SHIELD_CD,
                 lab("Instant Shield Block: the shield works the moment you raise it."),
                 lab("No Shield Cooldown: axes can no longer disable your shield.")));
+
+        cat("Wallhack",
+            tab("Main", ESP_ON, ESP_HOSTILE, ESP_FRIENDLY, ESP_PLAYERS, ESP_BOX, ESP_HEALTH, ESP_NAMES, ESP_DIST, ESP_RANGE, ESP_CANHIT,
+                lab("Only If Aimbot Can Hit uses Aimbot's presets, range and line of sight.")),
+            tab("Advanced", ESP_TRACERS, ESP_HP_TEXT, ESP_INVIS, ESP_TEAM, ESP_SPARE, ESP_THICK,
+                lab("Red = hostile, green = friendly, blue = player, purple = other, white = Aimbot's target.")),
+            page("Custom Mobs", new MobListPage("esp_custom", ESP_CUSTOM)));
+
+        cat("Aimbot",
+            tab("Main", AIM_ON, AIM_HOSTILE, AIM_FRIENDLY, AIM_PLAYERS, AIM_KEYMODE, AIM_BONE, AIM_RANGE, AIM_FOV, AIM_SMOOTH,
+                lab("Default key: V. Change it in Options > Controls > Key Binds > RiffedCheats.")),
+            tab("Advanced", AIM_PRIORITY, AIM_WALLS, AIM_STICKY, AIM_AUTOHIT, AIM_BOW, AIM_LEAD, AIM_TEAM, AIM_SPARE, AIM_INVIS, AIM_SHOW_FOV),
+            page("Custom Mobs", new MobListPage("aim_custom", AIM_CUSTOM)));
 
         cat("World",
             tab("Time",
@@ -286,7 +332,7 @@ public final class Menu {
     private static void bump(int d) { XP_LEVEL.value = Math.max(0, Math.min(100000, XP_LEVEL.value + d)); changed(); }
 
     public static void disableAll() {
-        for (Setting st : ALL) if (st.kind == Setting.Kind.TOGGLE && st != AUTOSAVE && st != UPDATE_CHECK && st != UNBREAKABLE && st != OVERLEVEL && st != VILL_UNLIMITED
+        for (Setting st : ALL) if (st.kind == Setting.Kind.TOGGLE && !st.keep && st != AUTOSAVE && st != UPDATE_CHECK && st != UNBREAKABLE && st != OVERLEVEL && st != VILL_UNLIMITED
                 && st != MULTI_CONFIG && st != KILL_NAMED && st != KILL_PETS && st != AURA_SPARE && st != AURA_WALLS) st.on = false;
         changed();
     }
@@ -311,7 +357,7 @@ public final class Menu {
         Properties p = new Properties();
         for (Setting st : ALL) {
             if (config && notInConfig(st)) continue;
-            p.setProperty(st.name, st.kind == Setting.Kind.TOGGLE ? Boolean.toString(st.on) : Float.toString(st.value));
+            p.setProperty(st.id(), st.kind == Setting.Kind.TOGGLE ? Boolean.toString(st.on) : Float.toString(st.value));
         }
         STRINGS.forEach((k, v) -> p.setProperty(STR + k, v));
         return p;
@@ -320,7 +366,7 @@ public final class Menu {
     static void apply(Properties p, boolean config) {
         for (Setting st : ALL) {
             if (config && notInConfig(st)) continue;
-            String v = p.getProperty(st.name);
+            String v = p.getProperty(st.id());
             if (v == null) continue;
             try {
                 if (st.kind == Setting.Kind.TOGGLE) st.on = Boolean.parseBoolean(v); else st.value = Float.parseFloat(v);
