@@ -16,6 +16,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.BowItem;
 import net.minecraft.world.item.CrossbowItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ProjectileWeaponItem;
 import net.minecraft.world.item.TridentItem;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.EntityHitResult;
@@ -87,7 +88,7 @@ public final class Aimbot {
 
         Set<String> custom = AIM_CUSTOM.on ? Targets.list("aim_custom") : Set.of();
         Vec3 eye = p.getEyePosition();
-        double r2 = AIM_RANGE.value * AIM_RANGE.value;
+        double range = ranged(p) ? AIM_RANGE_BOW.value : AIM_RANGE.value, r2 = range * range;
         for (Entity e : Compat.entities(level)) {
             if (p.distanceToSqr(e) > r2 || !Targets.selected(e, AIM_HOSTILE.on, AIM_FRIENDLY.on, AIM_PLAYERS.on, custom)) continue;
             if (!Targets.allowed(e, p, AIM_TEAM.on, AIM_SPARE.on, AIM_INVIS.on)) continue;
@@ -118,6 +119,12 @@ public final class Aimbot {
             p.swing(InteractionHand.MAIN_HAND);
         }
         if (System.currentTimeMillis() - lastFrame > 100) frame();      // the HUD is not being drawn (F1)
+    }
+
+    /** Holding a bow or crossbow (modded ones too), or charging a trident to throw it: the ranged distance applies. */
+    private static boolean ranged(LocalPlayer p) {
+        return p.getMainHandItem().getItem() instanceof ProjectileWeaponItem
+                || p.isUsingItem() && (p.getUseItem().getItem() instanceof ProjectileWeaponItem || p.getUseItem().getItem() instanceof TridentItem);
     }
 
     /** Arrow speed of what you are using, 0 for anything that is not a projectile weapon. */

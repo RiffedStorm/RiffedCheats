@@ -162,7 +162,8 @@ public final class Menu {
     public static final Setting AIM_HOSTILE = opt("Hostile Mobs", true, "aim.hostile"), AIM_FRIENDLY = opt("Friendly Mobs", false, "aim.friendly"), AIM_PLAYERS = opt("Players", false, "aim.players");
     public static final Setting AIM_KEYMODE = pick("Key", 0, "aim.keymode", "Hold", "Toggle", "Always On");
     public static final Setting AIM_BONE = pick("Aim At", 1, "aim.bone", "Head", "Body", "Feet");
-    public static final Setting AIM_RANGE = num("Range", 4, 128, 2, 32, "aim.range");
+    public static final Setting AIM_RANGE = num("Melee Range", 4, 128, 2, 8, "aim.range");
+    public static final Setting AIM_RANGE_BOW = num("Bow + Crossbow Range", 4, 256, 2, 64, "aim.rangebow");
     public static final Setting AIM_FOV = num("Field of View", 5, 360, 5, 90, "aim.fov");
     public static final Setting AIM_SMOOTH = num("Smoothness %", 0, 95, 5, 30, "aim.smooth");
     public static final Setting AIM_PRIORITY = pick("Priority", 0, "aim.priority", "Crosshair", "Closest", "Low Health");
@@ -232,7 +233,7 @@ public final class Menu {
             page("Custom Mobs", new MobListPage("esp_custom", ESP_CUSTOM)));
 
         cat("Aimbot",
-            tab("Main", AIM_ON, AIM_HOSTILE, AIM_FRIENDLY, AIM_PLAYERS, AIM_KEYMODE, AIM_BONE, AIM_RANGE, AIM_FOV, AIM_SMOOTH,
+            tab("Main", AIM_ON, AIM_HOSTILE, AIM_FRIENDLY, AIM_PLAYERS, AIM_KEYMODE, AIM_BONE, AIM_RANGE, AIM_RANGE_BOW, AIM_FOV, AIM_SMOOTH,
                 lab("Default key: V. Change it in Options > Controls > Key Binds > RiffedCheats.")),
             tab("Advanced", AIM_PRIORITY, AIM_WALLS, AIM_STICKY, AIM_AUTOHIT, AIM_BOW, AIM_LEAD, AIM_TEAM, AIM_SPARE, AIM_INVIS, AIM_SHOW_FOV, AIM_STATUS, AIM_STATUS_POS),
             page("Custom Mobs", new MobListPage("aim_custom", AIM_CUSTOM)));
