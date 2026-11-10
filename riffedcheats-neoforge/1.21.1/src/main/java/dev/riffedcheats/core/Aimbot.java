@@ -130,9 +130,24 @@ public final class Aimbot {
     /** Arrow speed of what you are using, 0 for anything that is not a projectile weapon. */
     private static double projectileSpeed(LocalPlayer p) {
         ItemStack use = p.isUsingItem() ? p.getUseItem() : ItemStack.EMPTY;
-        if (use.getItem() instanceof BowItem) return Math.max(0.3, BowItem.getPowerForTime(p.getTicksUsingItem()) * 3.0);
+        if (use.getItem() instanceof BowItem) return 3.0;     // always as if fully drawn: a barely drawn bow would need aiming nearly straight up
         if (use.getItem() instanceof TridentItem) return 2.5;
         return p.getMainHandItem().getItem() instanceof CrossbowItem ? 3.15 : 0;
+    }
+
+    private static final int MAX_FLIGHT = 100;
+
+    /** Ticks an arrow needs to cover this horizontal distance, with the 1% air drag per tick. */
+    private static double flightTicks(double distance, double speed) {
+        double left = 1 - 0.01 * distance / speed;
+        return left <= 0 ? MAX_FLIGHT : Math.min(MAX_FLIGHT, Math.log(left) / Math.log(0.99));
+    }
+
+    /** How far an arrow has fallen after this many ticks (gravity 0.05 per tick, same drag). */
+    private static double arrowDrop(double ticks) {
+        double drop = 0, fall = 0;
+        for (int i = 0; i < (int) ticks; i++) { drop += fall; fall = fall * 0.99 + 0.05; }
+        return drop + fall * (ticks - (int) ticks);
     }
 
     /** Every frame: moves your view part of the way to the target. */
@@ -150,16 +165,18 @@ public final class Aimbot {
         float pt = Compat.partial();
         Vec3 eye = p.getEyePosition(pt);
         double vx = target.getX() - target.xo, vy = target.getY() - target.yo, vz = target.getZ() - target.zo;
+        if (vx * vx + vy * vy + vz * vz > 4) vx = vy = vz = 0;     // it teleported, that is not movement to lead
         double x = Mth.lerp(pt, target.xo, target.getX()), y = Mth.lerp(pt, target.yo, target.getY()) + h, z = Mth.lerp(pt, target.zo, target.getZ());
 
         double speed = AIM_BOW.on ? projectileSpeed(p) : 0;
         if (speed > 0) {
             double t = 0, ax = x, ay = y, az = z;
-            for (int i = 0; i < 3; i++) {       // where it will be when the arrow arrives, and how far the arrow will have dropped
-                t = Math.sqrt(eye.distanceToSqr(ax, ay, az)) / speed;
-                ax = x + vx * t; ay = y + vy * t; az = z + vz * t;
+            for (int i = 0; i < 3; i++) {       // where it will be when the arrow arrives
+                t = flightTicks(Math.hypot(ax - eye.x, az - eye.z), speed);
+                ax = x + vx * t; ay = y + Mth.clamp(vy * t, -3, 3); az = z + vz * t;
             }
-            x = ax; y = ay + 0.025 * t * t; z = az;
+            x = ax; z = az;
+            y = ay + Math.min(arrowDrop(t), Math.hypot(ax - eye.x, az - eye.z));     // never more than 45 degrees of correction
         } else if (AIM_LEAD.on) { x += vx; y += vy; z += vz; }
 
         double[] a = angles(p, eye, x, y, z);
