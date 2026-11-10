@@ -8,6 +8,7 @@
   "license": "MIT",
   "environment": "*",
   "entrypoints": { "main": ["dev.riffedcheats.RiffedCommon"], "client": ["dev.riffedcheats.RiffedCheats"] },
+  "mixins": ["riffedcheats.mixins.json"],
   "depends": {
     "fabricloader": ">=0.19.5",
     "minecraft": "~26.2",

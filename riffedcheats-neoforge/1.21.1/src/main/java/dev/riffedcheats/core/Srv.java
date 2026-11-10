@@ -45,7 +45,7 @@ public final class Srv {
     private static String b(Setting s) { return s.active() ? "1" : "0"; }
 
     private static String state() {
-        return "god=" + b(GOD) + ";food=" + b(HUNGER) + ";heal=" + b(HEAL) + ";nofall=" + b(NOFALL) + ";fly=" + b(FLIGHT)
+        return "god=" + b(GOD) + ";food=" + b(HUNGER) + ";heal=" + b(HEAL) + ";nofall=" + b(NOFALL) + ";fly=" + (FLIGHT.active() || NOCLIP.active() ? "1" : "0") + ";noclip=" + b(NOCLIP)
                 + ";repair=" + b(AUTO_REPAIR) + ";block=" + b(INSTANT_BLOCK) + ";nocd=" + b(NO_SHIELD_CD)
                 + ";magnet=" + (MAGNET.active() ? MAGNET_RANGE.value : 0);
     }

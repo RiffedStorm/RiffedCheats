@@ -73,8 +73,9 @@ public final class Menu {
 
     public static final Setting FLIGHT = t("Flight", false);
     public static final Setting FLY_SPEED = s("Fly Speed", 1, 10, 0.5f, 2);
-    public static final Setting SPEED = eff("Walk Speed", "minecraft:speed", 1, 30, 3, 0);
-    public static final Setting JUMP = eff("High Jump", "minecraft:jump_boost", 1, 10, 3, 0);
+    public static final Setting NOCLIP = t("Noclip (fly through blocks)", false).needsServer();
+    public static final Setting SPEED = eff("Walk Speed", "minecraft:speed", 1, 100, 3, 0);
+    public static final Setting JUMP = eff("High Jump", "minecraft:jump_boost", 1, 100, 3, 0);
     public static final Setting STEP = t("Step Assist", false);
     public static final Setting STEP_H = s("Step Height", 1, 10, 0.5f, 2);
     public static final Setting LOWGRAV = t("Low Gravity", false);
@@ -86,15 +87,15 @@ public final class Menu {
     public static final Setting BLOCK_REACH = s("Block Reach", 4.5f, 20, 0.5f, 8);
     public static final Setting ENTITY_REACH = s("Entity Reach", 3, 10, 0.5f, 6);
 
-    public static final Setting HASTE = eff("Haste (fast mining)", "minecraft:haste", 1, 10, 3, 0);
-    public static final Setting STRENGTH = eff("Strength", "minecraft:strength", 1, 20, 3, 0);
+    public static final Setting HASTE = eff("Haste (fast mining)", "minecraft:haste", 1, 100, 3, 0);
+    public static final Setting STRENGTH = eff("Strength", "minecraft:strength", 1, 100, 3, 0);
     public static final Setting WATERB = eff("Water Breathing", "minecraft:water_breathing", 1, 1, 1, 1);
     public static final Setting FIRERES = eff("Fire Resistance", "minecraft:fire_resistance", 1, 1, 1, 1);
     public static final Setting INVIS = eff("Invisibility", "minecraft:invisibility", 1, 1, 1, 1);
     public static final Setting SLOWFALL = eff("Slow Falling", "minecraft:slow_falling", 1, 1, 1, 1);
-    public static final Setting HBOOST = eff("Health Boost", "minecraft:health_boost", 1, 10, 5, 0);
-    public static final Setting ABSORB = eff("Absorption", "minecraft:absorption", 1, 10, 5, 0);
-    public static final Setting LUCK = eff("Luck", "minecraft:luck", 1, 10, 3, 0);
+    public static final Setting HBOOST = eff("Health Boost", "minecraft:health_boost", 1, 100, 5, 0);
+    public static final Setting ABSORB = eff("Absorption", "minecraft:absorption", 1, 100, 5, 0);
+    public static final Setting LUCK = eff("Luck", "minecraft:luck", 1, 100, 3, 0);
     public static final Setting CONDUIT = eff("Conduit Power", "minecraft:conduit_power", 1, 1, 1, 1);
     public static final Setting DOLPHIN = eff("Dolphin's Grace", "minecraft:dolphins_grace", 1, 1, 1, 1);
 
@@ -163,7 +164,7 @@ public final class Menu {
                 cmd("Clear My Inventory", "clear @s"),
                 cmd("Kill Myself", "kill @s").red(),
                 lab("God: real invulnerability in Server Mode, Resistance V in Client Mode.")),
-            tab("Movement", FLIGHT, FLY_SPEED, SPEED, effLvl(SPEED), JUMP, effLvl(JUMP), STEP, STEP_H, LOWGRAV, GRAV_MULT, INFJUMP, AUTOSPRINT,
+            tab("Movement", FLIGHT, FLY_SPEED, NOCLIP, SPEED, effLvl(SPEED), JUMP, effLvl(JUMP), STEP, STEP_H, LOWGRAV, GRAV_MULT, INFJUMP, AUTOSPRINT,
                 lab("In Client Mode, Flight on a dedicated server needs allow-flight=true.")),
             tab("Reach", REACH, BLOCK_REACH, ENTITY_REACH,
                 lab("Reach/Step/Gravity/Anti-KB/No Delay/No Fall change server attributes."),

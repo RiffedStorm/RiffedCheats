@@ -49,7 +49,7 @@ You only need it on your own PC. Installing the **same jar on a server** is opti
 
 | Category | What you get |
 |---|---|
-| **Self** | God Mode, Auto Heal, Infinite Hunger, No Fall Damage, Fullbright, Kill Myself, gamemode, set your spawnpoint where you stand, heal / clear effects / clear inventory, **inventory editor** (items, counts, enchantments, repair, rename, unbreakable and back, **infinite items**), Flight (+ speed), Walk Speed, High Jump, Step Assist, Low Gravity, Infinite Jump, Auto Sprint, Extended Reach, 11 more potion effects with level sliders |
+| **Self** | God Mode, Auto Heal, Infinite Hunger, No Fall Damage, Fullbright, Kill Myself, gamemode, set your spawnpoint where you stand, heal / clear effects / clear inventory, **inventory editor** (items, counts, enchantments, repair, rename, unbreakable and back, **infinite items**), Flight (+ speed), **Noclip** (Server Mode), Walk Speed, High Jump, Step Assist, Low Gravity, Infinite Jump, Auto Sprint, Extended Reach, 11 more potion effects with level sliders |
 | **XP / Level** | Set any level, **freeze** it (checked every tick, a command is only sent when the level really changes, so no lag) |
 | **Combat** | Kill Aura, **Always Crit** (works on the ground, no jumping), **No Attack Delay** (spam full-damage hits), Anti-Knockback (also explosions), **Instant Shield Block** and **No Shield Cooldown** (Server Mode) |
 | **World** | Time (skips *forward*, so the day counter never resets), weather, difficulty, **live game rule switches** (green ON / red OFF); **ProtoManly's Weather** storms when that mod is installed |
@@ -160,7 +160,7 @@ Full step-by-step instructions are in `BUILDING.md` inside each source folder.
 
 The menu works through normal vanilla commands, so **no server mod is required**.
 
-**Server Mode (optional):** put the same jar in the server's `mods` folder. The menu detects it and switches by itself (singleplayer and Open to LAN always have it). Players without the mod can still join, and only operators can use it. In Server Mode nothing reaches anyone's chat, and you get real God Mode, Infinite Items, Instant Shield Block, No Shield Cooldown, Auto Repair, an Item + XP Magnet, and Flight without `allow-flight`.
+**Server Mode (optional):** put the same jar in the server's `mods` folder. The menu detects it and switches by itself (singleplayer and Open to LAN always have it). Players without the mod can still join, and only operators can use it. In Server Mode nothing reaches anyone's chat, and you get real God Mode, Noclip, Infinite Items, Instant Shield Block, No Shield Cooldown, Auto Repair, an Item + XP Magnet, and Flight without `allow-flight`.
 
 Without the mod on the server (Client Mode):
 

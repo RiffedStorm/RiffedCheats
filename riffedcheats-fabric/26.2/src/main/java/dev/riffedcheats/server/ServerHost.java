@@ -1,5 +1,6 @@
 package dev.riffedcheats.server;
 
+import dev.riffedcheats.Noclip;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -26,7 +27,7 @@ import net.minecraft.world.item.component.CustomData;
  * permission. Commands run silently here, so nothing reaches anyone's chat. Must never touch client-only classes.
  */
 public final class ServerHost {
-    public static final int PROTO = 1;
+    public static final int PROTO = 2;
     public static final String SEP = "\u0001";
     /** Item custom data: the count an infinite stack is kept at. */
     public static final String INF_KEY = "riffedcheats_infinite";
@@ -35,11 +36,12 @@ public final class ServerHost {
     public static BiConsumer<ServerPlayer, String> sender = (p, s) -> {};
 
     private static final class State {
-        boolean god, food, heal, nofall, fly, repair, block, nocd;
+        boolean god, food, heal, nofall, fly, repair, block, nocd, noclip;
         double magnet;
     }
 
     private static final Map<UUID, State> STATES = new HashMap<>();
+    private static final Map<UUID, Long> RESYNC = new HashMap<>();
     private static long ticks;
 
     private static MinecraftServer server(ServerPlayer p) { return p.level().getServer(); }
@@ -109,11 +111,13 @@ public final class ServerHost {
                 case "repair" -> n.repair = on;
                 case "block" -> n.block = on;
                 case "nocd" -> n.nocd = on;
+                case "noclip" -> n.noclip = on;
                 case "magnet" -> { try { n.magnet = Math.max(0, Math.min(64, Double.parseDouble(f[1]))); } catch (NumberFormatException ignored) {} }
                 default -> {}
             }
         }
         if (old != null && old.fly && !n.fly) stopFlying(p);
+        if (n.noclip) Noclip.SERVER.add(id); else Noclip.SERVER.remove(id);
         STATES.put(id, n);
     }
 
@@ -125,7 +129,10 @@ public final class ServerHost {
         p.onUpdateAbilities();
     }
 
-    private static void stop(ServerPlayer p, State s) { if (s.fly) stopFlying(p); }
+    private static void stop(ServerPlayer p, State s) {
+        Noclip.SERVER.remove(p.getUUID());
+        if (s.fly) stopFlying(p);
+    }
 
     /** Leaving the server: flight is saved with the player, so it is turned off before that happens. */
     public static void left(ServerPlayer p) {
@@ -156,12 +163,14 @@ public final class ServerHost {
             apply(p, s);
         }
         STATES.keySet().removeIf(id -> srv.getPlayerList().getPlayer(id) == null);
+        RESYNC.keySet().removeIf(id -> srv.getPlayerList().getPlayer(id) == null);
+        Noclip.SERVER.removeIf(id -> srv.getPlayerList().getPlayer(id) == null);
     }
 
     private static void apply(ServerPlayer p, State s) {
         if (s.food) { p.getFoodData().setFoodLevel(20); p.getFoodData().setSaturation(20f); }
         if (s.heal && !p.isDeadOrDying() && p.getHealth() < p.getMaxHealth()) p.setHealth(p.getMaxHealth());
-        if (s.nofall) p.resetFallDistance();
+        if (s.nofall || s.noclip) p.resetFallDistance();
         if (s.fly && !p.getAbilities().mayfly) { p.getAbilities().mayfly = true; p.onUpdateAbilities(); }
         if (s.block) ServerCompat.instantBlock(p);
         if (s.nocd) ServerCompat.clearShieldCooldown(p);
@@ -213,7 +222,13 @@ public final class ServerHost {
         t.getInventory().setChanged();
     }
 
+    /**
+     * The client takes the used item off its own count, and the server would not tell it about the refill because by its
+     * own bookkeeping the count never changed. So after a refill the inventory is sent again, and once more a moment
+     * later in case the client finished using the item after the first copy arrived.
+     */
     private static void keepInfinite(ServerPlayer p) {
+        boolean refilled = false;
         Inventory inv = p.getInventory();
         for (int i = 0; i < inv.getContainerSize(); i++) {
             ItemStack st = inv.getItem(i);
@@ -223,7 +238,15 @@ public final class ServerHost {
             CompoundTag tag = d.copyTag();
             if (!tag.contains(INF_KEY)) continue;
             int n = ServerCompat.getInt(tag, INF_KEY);
-            if (n > 0 && st.getCount() != n) st.setCount(n);
+            if (n > 0 && st.getCount() != n) { st.setCount(n); refilled = true; }
+        }
+        UUID id = p.getUUID();
+        if (refilled) {
+            p.containerMenu.sendAllDataToRemote();
+            RESYNC.put(id, ticks + 8);
+        } else if (RESYNC.containsKey(id) && ticks >= RESYNC.get(id)) {
+            RESYNC.remove(id);
+            p.containerMenu.sendAllDataToRemote();
         }
     }
 }

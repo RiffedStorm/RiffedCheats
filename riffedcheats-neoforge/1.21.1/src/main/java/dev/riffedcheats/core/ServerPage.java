@@ -40,7 +40,7 @@ public final class ServerPage implements Page {
         ty += 6;
         g.text("Only with Server Side (grey elsewhere):", x, ty, Ui.TEXT);
         ty += 12;
-        para(g, "real God Mode, Infinite Items, Instant Shield Block, No Shield Cooldown, Auto Repair, Item Magnet. "
+        para(g, "real God Mode, Noclip, Infinite Items, Instant Shield Block, No Shield Cooldown, Auto Repair, Item Magnet. "
                 + "Also: nothing in anyone's chat, no command length limit, full Console output, and Flight without allow-flight.", ty, Ui.DIM);
     }
 

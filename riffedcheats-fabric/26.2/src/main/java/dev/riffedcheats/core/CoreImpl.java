@@ -6,7 +6,7 @@ import net.minecraft.network.chat.Component;
 
 /** The hot-swappable part of the mod: everything the menu and its features do. Loaded by dev.riffedcheats.Loader. */
 public final class CoreImpl implements Core {
-    @Override public int needsLoader() { return 2; }
+    @Override public int needsLoader() { return 3; }
     @Override public void start() { Menu.load(); }
     @Override public void shutdown() { Compat.closeMenu(); Features.shutdown(); }
     @Override public void tick() { Features.tick(); }

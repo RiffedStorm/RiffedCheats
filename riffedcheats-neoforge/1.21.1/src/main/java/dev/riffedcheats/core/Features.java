@@ -28,6 +28,7 @@ import net.minecraft.world.phys.Vec3;
 public final class Features {
     private static long ticks;
     private static LocalPlayer lastPlayer;
+    private static boolean noclipWas;
     private static boolean flyWas, srvFlySent, fbWas, resumeSprint, oldXrayChecked;
     private static int jumpCd, auraCd;
     private static long lastFreezeSend;
@@ -67,7 +68,7 @@ public final class Features {
         Access.update(mc);
         LocalPlayer p = mc.player;
         ClientLevel level = mc.level;
-        if (p == null || level == null) { lastPlayer = null; Cmd.clear(); return; }
+        if (p == null || level == null) { lastPlayer = null; Cmd.clear(); noclip(null); return; }
         ticks++;
         if (p != lastPlayer) { onNewPlayer(); lastPlayer = p; }
 
@@ -125,8 +126,16 @@ public final class Features {
         }
     }
 
+    /** Tells the mixin who is phasing, and turns occlusion culling off meanwhile so the world still draws from inside solid blocks. */
+    private static void noclip(LocalPlayer p) {
+        boolean on = p != null && NOCLIP.active();
+        dev.riffedcheats.Noclip.client = on ? p.getUUID() : null;
+        if (on != noclipWas) { noclipWas = on; Compat.setSmartCull(!on); }
+    }
+
     /** Before this core is replaced by an update: undo client-only changes the new core cannot know about. */
     public static void shutdown() {
+        noclip(null);
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer p = mc.player;
         if (p != null) {
@@ -163,8 +172,10 @@ public final class Features {
     // ---------------- client-side features ----------------
     private static void client(LocalPlayer p, ClientLevel level, Minecraft mc) {
         // Flight
-        if (FLIGHT.active()) {
+        noclip(p);
+        if (FLIGHT.active() || NOCLIP.active()) {
             Compat.setMayFly(p, true);
+            if (NOCLIP.active()) Compat.setFlying(p, true);      // without flying you would sink through the floor
             Compat.setFlySpeed(p, 0.05f * FLY_SPEED.value);
             if (Access.mode == Access.Mode.LOCAL && !srvFlySent) { Compat.setServerMayFly(true); srvFlySent = true; }
             flyWas = true;
