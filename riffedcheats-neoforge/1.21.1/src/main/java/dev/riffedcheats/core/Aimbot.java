@@ -46,10 +46,17 @@ public final class Aimbot {
         };
     }
 
-    /** On Attack mode: swinging at something, drawing a bow or trident, or holding a loaded crossbow. */
+    /** Holding right click with this counts as attacking: bows, tridents and modded weapons like Cataclysm's Meat Shredder. */
+    private static boolean heldAttack(ItemStack use) {
+        return switch (use.getUseAnimation().name()) {
+            case "EAT", "DRINK", "BLOCK", "SPYGLASS", "TOOT_HORN", "BRUSH", "BUNDLE" -> false;
+            default -> true;
+        };
+    }
+
+    /** On Attack mode: swinging at something, holding right click with a weapon, or holding a loaded crossbow. */
     private static boolean fighting(LocalPlayer p) {
-        ItemStack use = p.isUsingItem() ? p.getUseItem() : ItemStack.EMPTY;
-        if (use.getItem() instanceof ProjectileWeaponItem || use.getItem() instanceof TridentItem) return true;
+        if (p.isUsingItem() && heldAttack(p.getUseItem())) return true;
         ItemStack main = p.getMainHandItem();
         if (main.getItem() instanceof CrossbowItem && CrossbowItem.isCharged(main)) return true;
         Minecraft mc = Minecraft.getInstance();
