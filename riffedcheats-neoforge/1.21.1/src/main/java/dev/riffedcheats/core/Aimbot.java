@@ -28,7 +28,7 @@ public final class Aimbot {
     private static final Map<Integer, Double> HITTABLE = new HashMap<>();   // entity id -> height of the point to aim at
     private static Entity target;
     private static boolean toggled;
-    private static long lastFrame;
+    private static long lastFrame, lastSwing;
 
     static void reset() { target = null; HITTABLE.clear(); }
 
@@ -41,8 +41,23 @@ public final class Aimbot {
         return switch (AIM_KEYMODE.intValue()) {
             case 1 -> toggled;
             case 2 -> true;
+            case 3 -> fighting(p);
             default -> RiffedCheats.AIM.isDown();
         };
+    }
+
+    /** On Attack mode: swinging at something, drawing a bow or trident, or holding a loaded crossbow. */
+    private static boolean fighting(LocalPlayer p) {
+        ItemStack use = p.isUsingItem() ? p.getUseItem() : ItemStack.EMPTY;
+        if (use.getItem() instanceof ProjectileWeaponItem || use.getItem() instanceof TridentItem) return true;
+        ItemStack main = p.getMainHandItem();
+        if (main.getItem() instanceof CrossbowItem && CrossbowItem.isCharged(main)) return true;
+        Minecraft mc = Minecraft.getInstance();
+        long now = System.currentTimeMillis();
+        // holding attack on a block is mining, unless a fight is already going on
+        boolean mining = target == null && mc.hitResult != null && mc.hitResult.getType() == HitResult.Type.BLOCK;
+        if (mc.options.keyAttack.isDown() && !mining) lastSwing = now;
+        return now - lastSwing < 400;       // stays on between separate clicks
     }
 
     private static boolean clear(ClientLevel level, LocalPlayer p, Vec3 eye, Entity e, double y) {

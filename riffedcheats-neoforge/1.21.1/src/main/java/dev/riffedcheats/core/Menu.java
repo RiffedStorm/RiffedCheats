@@ -160,7 +160,7 @@ public final class Menu {
     // ---------------- Aimbot ----------------
     public static final Setting AIM_ON = t("Aimbot", false);
     public static final Setting AIM_HOSTILE = opt("Hostile Mobs", true, "aim.hostile"), AIM_FRIENDLY = opt("Friendly Mobs", false, "aim.friendly"), AIM_PLAYERS = opt("Players", false, "aim.players");
-    public static final Setting AIM_KEYMODE = pick("Key", 0, "aim.keymode", "Hold", "Toggle", "Always On");
+    public static final Setting AIM_KEYMODE = pick("Key", 0, "aim.keymode", "Hold", "Toggle", "Always On", "On Attack");
     public static final Setting AIM_BONE = pick("Aim At", 1, "aim.bone", "Head", "Body", "Feet");
     public static final Setting AIM_RANGE = num("Melee Range", 4, 128, 2, 8, "aim.range");
     public static final Setting AIM_RANGE_BOW = num("Bow + Crossbow Range", 4, 256, 2, 64, "aim.rangebow");
