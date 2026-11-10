@@ -105,6 +105,12 @@ public final class Aimbot {
         };
     }
 
+    /** Inside the field of view; or, with Closest priority and the snap option, close enough to you in any direction. */
+    private static boolean reachable(LocalPlayer p, Vec3 eye, Entity e, double y, double cone) {
+        if (offAngle(p, eye, e, y) <= cone) return true;
+        return AIM_CLOSEST_ALL.on && priority(p) == 1 && p.distanceToSqr(e) <= AIM_SNAP.value * AIM_SNAP.value;
+    }
+
     /** Every client tick. */
     static void tick(LocalPlayer p, ClientLevel level, Minecraft mc) {
         while (RiffedCheats.AIM.consumeClick()) if (AIM_KEYMODE.intValue() == 1) toggled = !toggled;
@@ -122,15 +128,15 @@ public final class Aimbot {
         }
 
         if (!aiming(p)) { target = null; return; }
-        double cone = AIM_FOV.value >= 355 || (AIM_CLOSEST_ALL.on && priority(p) == 1) ? Double.MAX_VALUE : AIM_FOV.value / 2.0;
+        double cone = AIM_FOV.value >= 355 ? Double.MAX_VALUE : AIM_FOV.value / 2.0;
         boolean keep = AIM_STICKY.on && target != null && HITTABLE.containsKey(target.getId())
-                && offAngle(p, eye, target, HITTABLE.get(target.getId())) <= cone;
+                && reachable(p, eye, target, HITTABLE.get(target.getId()), cone);
         if (!keep) {
             Entity best = null;
             double bestScore = Double.MAX_VALUE;
             for (Entity e : Compat.entities(level)) {
                 Double y = HITTABLE.get(e.getId());
-                if (y == null || offAngle(p, eye, e, y) > cone) continue;
+                if (y == null || !reachable(p, eye, e, y, cone)) continue;
                 double s = score(p, eye, e, y);
                 if (s < bestScore) { bestScore = s; best = e; }
             }
