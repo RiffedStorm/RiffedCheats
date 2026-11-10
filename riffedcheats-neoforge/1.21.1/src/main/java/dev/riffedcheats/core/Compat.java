@@ -386,6 +386,39 @@ public final class Compat {
         return l;
     }
 
+    /** Curses (the game's own tag, so modded curses count too). */
+    public static boolean enchantCurse(String id) {
+        return reg().getHolder(ResourceLocation.parse(id)).map(h -> h.is(net.minecraft.tags.EnchantmentTags.CURSE)).orElse(false);
+    }
+
+    /** A tamed animal or horse. */
+    public static boolean isPet(Entity e) {
+        return e instanceof net.minecraft.world.entity.TamableAnimal t && t.isTame()
+                || e instanceof net.minecraft.world.entity.animal.horse.AbstractHorse h && h.isTamed();
+    }
+
+    /** F1 is hiding the HUD. */
+    public static boolean hudHidden() { return mc().options.hideGui; }
+
+    /** x, y, z, yaw, pitch of the camera. */
+    public static double[] camera() {
+        var c = mc().gameRenderer.getMainCamera();
+        var v = c.getPosition();
+        return new double[] { v.x, v.y, v.z, c.getYRot(), c.getXRot() };
+    }
+
+    private static java.lang.reflect.Method fovMethod;
+    /** Current vertical field of view, including sprinting and potions. */
+    public static double fov() {
+        try {
+            if (fovMethod == null) {
+                fovMethod = net.minecraft.client.renderer.GameRenderer.class.getDeclaredMethod("getFov", net.minecraft.client.Camera.class, float.class, boolean.class);
+                fovMethod.setAccessible(true);
+            }
+            return (double) fovMethod.invoke(mc().gameRenderer, mc().gameRenderer.getMainCamera(), mc().getTimer().getGameTimeDeltaPartialTick(true), true);
+        } catch (Throwable t) { return mc().options.fov().get(); }
+    }
+
     /** Ping in ms from the player list, -1 if unknown. */
     public static int ping(String name) {
         ClientPacketListener c = mc().getConnection();

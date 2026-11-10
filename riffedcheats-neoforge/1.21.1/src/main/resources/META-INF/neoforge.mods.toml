@@ -6,18 +6,19 @@ license="MIT"
 modId="${mod_id}"
 version="${mod_version}"
 displayName="RiffedCheats"
-description='''Client-side cheat / trainer menu inspired by CheatUtils, styled like YimMenuV2. Works in your own worlds, and on servers only with operator rights.'''
+displayTest="IGNORE_ALL_VERSION"
+description='''Client-side cheat / trainer menu inspired by CheatUtils, styled like YimMenuV2. Works in your own worlds and on servers with operator rights. Install it on a server too for silent commands and extra features; players without it can still join.'''
 
 [[dependencies.${mod_id}]]
 modId="neoforge"
 type="required"
 versionRange="[21.1.0,)"
 ordering="NONE"
-side="CLIENT"
+side="BOTH"
 
 [[dependencies.${mod_id}]]
 modId="minecraft"
 type="required"
 versionRange="[1.21.1]"
 ordering="NONE"
-side="CLIENT"
+side="BOTH"

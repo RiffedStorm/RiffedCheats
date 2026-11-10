@@ -13,7 +13,11 @@ import net.minecraft.world.item.Items;
 
 /** Item spawner: search, icon previews on hover (Menyoo style), enchant editor, count, infinite durability. */
 public final class ItemsPage implements Page {
-    record Entry(ItemStack stack, String name, String id, String lower) {}
+    /** detail = the item's tooltip line, shown instead of the name when several items share one name (music discs, smithing templates...). */
+    record Entry(ItemStack stack, String name, String id, String lower, String detail) {
+        String label() { return detail.isEmpty() ? name : detail; }
+        String sortKey() { return (name + " " + detail).toLowerCase(Locale.ROOT); }
+    }
     private static List<Entry> ALL;
 
     private static final int LW = 172, ROWH = 18;
@@ -22,6 +26,8 @@ public final class ItemsPage implements Page {
     private List<Entry> view = List.of();
     private final TextField search = new TextField();
     private String lastQuery = null;
+    private int lastFav = -1;
+    private final Stars itemStars = new Stars(Favorites.ITEM), enchStars = new Stars(Favorites.ENCH);
     private int listScroll, enchScroll;
     private Entry selected, hovered;
     private final Map<String, Integer> ench = new LinkedHashMap<>();
@@ -39,30 +45,69 @@ public final class ItemsPage implements Page {
     static List<Entry> items() {
         if (ALL != null) return ALL;
         List<Entry> l = new ArrayList<>();
+        Map<String, Integer> sameName = new java.util.HashMap<>();
+        Map<Item, List<String>> tips = new java.util.HashMap<>();
+        for (Item it : BuiltInRegistries.ITEM) {
+            if (it == Items.AIR) continue;
+            ItemStack st = new ItemStack(it);
+            sameName.merge(st.getHoverName().getString(), 1, Integer::sum);
+            tips.put(it, tooltip(st));
+        }
         for (Item it : BuiltInRegistries.ITEM) {
             if (it == Items.AIR) continue;
             ItemStack st = new ItemStack(it);
             String name = st.getHoverName().getString();
             String id = BuiltInRegistries.ITEM.getKey(it).toString();
-            l.add(new Entry(st, name, id, (name + " " + id).toLowerCase(Locale.ROOT)));
+            List<String> tip = tips.get(it);
+            String detail = sameName.get(name) > 1 && !tip.isEmpty() ? tip.get(0) : "";
+            l.add(new Entry(st, name, id, (name + " " + id + " " + String.join(" ", tip)).toLowerCase(Locale.ROOT), detail));
         }
-        l.sort(Comparator.comparing(e -> e.name().toLowerCase(Locale.ROOT)));
+        l.sort(Comparator.comparing(Entry::sortKey));
         return ALL = l;
     }
 
-    private void filter() {
-        if (search.text.equals(lastQuery)) return;
-        lastQuery = search.text;
-        String[] q = search.text.toLowerCase(Locale.ROOT).trim().split("\\s+");
+    /** The lines under the item's name in its tooltip (a disc's song, a template's trim...). Empty when a mod's tooltip fails. */
+    private static List<String> tooltip(ItemStack st) {
+        List<String> out = new ArrayList<>();
+        try {
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            var lines = st.getTooltipLines(Item.TooltipContext.of(mc.level), mc.player, net.minecraft.world.item.TooltipFlag.NORMAL);
+            for (int i = 1; i < lines.size(); i++) {
+                String s = lines.get(i).getString().trim();
+                if (!s.isEmpty()) out.add(s);
+            }
+        } catch (Throwable ignored) {}
+        return out;
+    }
+
+    private static int rank(Entry e, String q) {
+        String n = e.sortKey(), d = e.detail().toLowerCase(Locale.ROOT);
+        return n.startsWith(q) || d.startsWith(q) ? 0 : n.contains(q) ? 1 : 2;
+    }
+
+    /** Every item matching all the typed words (name, id or tooltip): favorites first, then the best name matches. */
+    static List<Entry> search(String text) {
+        String raw = text.toLowerCase(Locale.ROOT).trim();
+        String[] q = raw.split("\\s+");
         List<Entry> out = new ArrayList<>();
-        for (Entry e : all) {
+        for (Entry e : items()) {
             boolean ok = true;
             for (String t : q) if (!t.isEmpty() && !e.lower().contains(t)) { ok = false; break; }
             if (ok) out.add(e);
         }
-        view = out;
-        listScroll = 0;
+        if (!raw.isEmpty()) out.sort(Comparator.comparingInt(e -> rank(e, raw)));
+        return Favorites.arrange(Favorites.ITEM, out, Entry::id);
     }
+
+    private void filter() {
+        if (search.text.equals(lastQuery) && Favorites.version == lastFav) return;
+        if (!search.text.equals(lastQuery)) listScroll = 0;
+        lastQuery = search.text;
+        lastFav = Favorites.version;
+        view = search(search.text);
+    }
+
+    private List<String> shownEnch() { return Favorites.arrange(Favorites.ENCH, enchIds, s -> s); }
 
     private void select(Entry e) {
         selected = e;
@@ -113,7 +158,8 @@ public final class ItemsPage implements Page {
             if (hov) hovered = e;
             Ui.rr(g, x, ry, LW, ROWH - 1, e == selected ? Ui.SEL : hov ? Ui.HOVER : Ui.BTN);
             g.item(e.stack(), x + 1, ry);
-            Ui.label(g, e.name(), x + 20, ry + 5, LW - 24, Ui.TEXT);
+            Ui.label(g, e.label(), x + 20, ry + 5, LW - 36, Ui.TEXT);
+            itemStars.draw(g, e.id(), x + LW - Stars.W, ry, ROWH - 1, mx, my);
         }
         bar.draw(g, x + LW + 2, y + 20, rows * ROWH - 1, view.size(), rows, listScroll, mx, my);
         g.text(view.size() + " items", x + 2, y + h - 9, Ui.DIM);
@@ -126,7 +172,7 @@ public final class ItemsPage implements Page {
             Ui.center(g, "Hover or click an item", rx, y + 36, rw, Ui.DIM);
         } else {
             g.itemScaled(shown.stack(), rx + (rw - 56) / 2f, y + 3, 3.5f);
-            Ui.center(g, Ui.fit(g, shown.name(), rw - 8), rx, y + 62, rw, Ui.TEXT);
+            Ui.center(g, Ui.fit(g, shown.label(), rw - 8), rx, y + 62, rw, Ui.TEXT);
             Ui.center(g, Ui.fit(g, shown.id(), rw - 8), rx, y + 72, rw, Ui.DIM);
         }
 
@@ -151,16 +197,18 @@ public final class ItemsPage implements Page {
         g.text("Enchantments", rx, hy + 4, Ui.DIM);
         chip(g, "Show All", showAll, rx + rw - 90, hy - 1, 90, Ui.in(mx, my, rx + rw - 90, hy - 1, 90, 16));
         int er = enchRows();
+        List<String> shownE = shownEnch();
         enchScroll = Math.max(0, Math.min(enchScroll, Math.max(0, enchIds.size() - er)));
         enchBar.draw(g, x + w + 1, y + LIST, er * 16 - 1, enchIds.size(), er, enchScroll, mx, my);
         if (selected == null) g.text("Select an item first.", rx, y + LIST + 2, Ui.DIM);
         else if (enchIds.isEmpty()) g.text("No compatible enchantments.", rx, y + LIST + 2, Ui.DIM);
-        for (int i = 0; i < er && enchScroll + i < enchIds.size(); i++) {
-            String id = enchIds.get(enchScroll + i);
+        for (int i = 0; i < er && enchScroll + i < shownE.size(); i++) {
+            String id = shownE.get(enchScroll + i);
             int ry = y + LIST + i * 16;
             int lv = ench.getOrDefault(id, 0);
-            Ui.rr(g, rx, ry, rw, 15, lv > 0 ? Ui.SEL : Ui.BTN);
-            Ui.label(g, pretty(id), rx + 4, ry + 4, rw - 88, Ui.TEXT);
+            Ui.rr(g, rx, ry, rw, 15, Ui.enchRow(id, lv));
+            enchStars.draw(g, id, rx, ry, 15, mx, my);
+            Ui.label(g, pretty(id), rx + 12, ry + 4, rw - 96, Ui.enchColor(id));
             Ui.button(g, "-", rx + rw - 80, ry, 14, 15, Ui.in(mx, my, rx + rw - 80, ry, 14, 15), false);
             Ui.center(g, String.valueOf(lv), rx + rw - 66, ry + 4, 22, Ui.TEXT);
             Ui.button(g, "+", rx + rw - 44, ry, 14, 15, Ui.in(mx, my, rx + rw - 44, ry, 14, 15), false);
@@ -187,8 +235,10 @@ public final class ItemsPage implements Page {
         if (bar.press(mx, my)) { listScroll = bar.at(my); return true; }
         if (enchBar.press(mx, my)) { enchScroll = enchBar.at(my); return true; }
         int rows = listRows();
-        for (int i = 0; i < rows && listScroll + i < view.size(); i++)
+        for (int i = 0; i < rows && listScroll + i < view.size(); i++) {
+            if (itemStars.press(view.get(listScroll + i).id(), x + LW - Stars.W, y + 20 + i * ROWH, ROWH - 1, mx, my)) return true;
             if (Ui.in(mx, my, x, y + 20 + i * ROWH, LW, ROWH - 1)) { select(view.get(listScroll + i)); return true; }
+        }
 
         int rx = rx(), rw = rw(), cy = y + COUNT_Y;
         if (Ui.in(mx, my, rx + 40, cy, 14, 16)) { count = Math.max(1, count - (btn == 1 ? 8 : 1)); return true; }
@@ -201,11 +251,13 @@ public final class ItemsPage implements Page {
         if (Ui.in(mx, my, rx + rw - 90, y + HDR - 1, 90, 16)) { showAll = !showAll; rebuildEnch(); return true; }
 
         int er = enchRows();
-        for (int i = 0; i < er && enchScroll + i < enchIds.size(); i++) {
-            String id = enchIds.get(enchScroll + i);
+        List<String> shownE = shownEnch();
+        for (int i = 0; i < er && enchScroll + i < shownE.size(); i++) {
+            String id = shownE.get(enchScroll + i);
             int ry = y + LIST + i * 16;
             int lv = ench.getOrDefault(id, 0);
             int cap = Menu.OVERLEVEL.on ? 255 : Compat.enchantMax(id);
+            if (enchStars.press(id, rx, ry, 15, mx, my)) return true;
             if (Ui.in(mx, my, rx + rw - 80, ry, 14, 15)) { set(id, Math.max(0, lv - (btn == 1 && Menu.OVERLEVEL.on ? 10 : 1))); return true; }
             if (Ui.in(mx, my, rx + rw - 44, ry, 14, 15)) { set(id, Math.min(cap, lv + (btn == 1 && Menu.OVERLEVEL.on ? 10 : 1))); return true; }
             if (Ui.in(mx, my, rx + rw - 28, ry, 28, 15)) { set(id, Compat.enchantMax(id)); return true; }
@@ -241,11 +293,13 @@ public final class ItemsPage implements Page {
     public boolean drag(int mx, int my) {
         if (bar.dragging()) listScroll = bar.at(my);
         else if (enchBar.dragging()) enchScroll = enchBar.at(my);
+        else if (itemStars.active()) itemStars.drag(my, view.stream().map(Entry::id).toList(), y + 20, ROWH, listScroll);
+        else if (enchStars.active()) enchStars.drag(my, shownEnch(), y + LIST, 16, enchScroll);
         else return false;
         return true;
     }
 
-    @Override public void release() { bar.release(); enchBar.release(); }
+    @Override public void release() { itemStars.release(); enchStars.release(); bar.release(); enchBar.release(); }
 
     @Override
     public boolean scroll(int mx, int my, double dy) {

@@ -6,6 +6,7 @@ import net.minecraft.network.chat.Component;
 
 /** The hot-swappable part of the mod: everything the menu and its features do. Loaded by dev.riffedcheats.Loader. */
 public final class CoreImpl implements Core {
+    @Override public int needsLoader() { return 2; }
     @Override public void start() { Menu.load(); }
     @Override public void shutdown() { Compat.closeMenu(); Features.shutdown(); }
     @Override public void tick() { Features.tick(); }
@@ -14,4 +15,6 @@ public final class CoreImpl implements Core {
     @Override public void frame() { Features.frameHook = true; Features.frame(); }
     @Override public boolean freecamOn() { return Features.freecamOn(); }
     @Override public void openMenu() { Compat.openMenu(); }
+    @Override public void onServer(String data) { Srv.onMessage(data); }
+    @Override public void hud(Object g) { Waypoints.render(Gfx.of(g)); }
 }

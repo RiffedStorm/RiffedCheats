@@ -14,7 +14,9 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.InputEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.RenderFrameEvent;
+import net.neoforged.neoforge.client.event.RenderGuiEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
 /** Permanent entry point: key bind + events, forwarded to the hot-swappable core (see Loader). */
@@ -32,6 +34,7 @@ public class RiffedCheats {
         NeoForge.EVENT_BUS.addListener(this::onInteract);
         NeoForge.EVENT_BUS.addListener(this::onChat);
         NeoForge.EVENT_BUS.addListener(this::onFrame);
+        NeoForge.EVENT_BUS.addListener(this::onHud);
         Path jar = null;
         try { jar = ModList.get().getModFileById(MODID).getFile().getFilePath(); } catch (Throwable ignored) {}
         Loader.init(jar);
@@ -56,4 +59,12 @@ public class RiffedCheats {
     private void onChat(ClientChatReceivedEvent e) { if (Loader.core().onMessage(e.getMessage())) e.setCanceled(true); }
 
     private void onFrame(RenderFrameEvent.Pre e) { Loader.core().frame(); }
+    private void onHud(RenderGuiEvent.Post e) { Loader.core().hud(e.getGuiGraphics()); }
+
+    /** True when the server you are on has RiffedCheats too. */
+    public static boolean canSend() {
+        var c = Minecraft.getInstance().getConnection();
+        return c != null && c.hasChannel(Msg.TYPE);
+    }
+    public static void send(String data) { PacketDistributor.sendToServer(new Msg(data)); }
 }

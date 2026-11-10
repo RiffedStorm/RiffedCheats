@@ -56,7 +56,7 @@ public final class Cmd {
         if (s.startsWith(TAG)) { answer(s.substring(TAG.length())); return true; }
         dispatch(c);
         // On a server the console output arrives here. Slow commands (locate in big modded worlds) may answer late.
-        if (Access.mode != Access.Mode.LOCAL && lastWasConsole && System.currentTimeMillis() - consoleSentAt < 30000)
+        if (!Access.direct() && lastWasConsole && System.currentTimeMillis() - consoleSentAt < 30000)
             ConsolePage.log(c.getString());
         if (Q.isEmpty() && System.currentTimeMillis() - lastMark > 2000) return false;
         return c.getContents() instanceof TranslatableContents t && t.getKey().startsWith("commands.");
@@ -68,11 +68,18 @@ public final class Cmd {
     static void dispatch(Component c) {
         if (!(c.getContents() instanceof TranslatableContents t)) return;
         Object[] a = t.getArgs();
+        String[] s = new String[a.length];
+        for (int i = 0; i < a.length; i++) s[i] = str(a[i]);
+        dispatch(t.getKey(), s);
+    }
+
+    /** Same, for a translation key and its arguments (the server part of the mod sends them like this). */
+    static void dispatch(String key, String[] a) {
         if (a.length < 1) return;
-        switch (t.getKey()) {
-            case "commands.gamerule.query", "commands.gamerule.set" -> { if (a.length >= 2) Rules.put(str(a[0]), str(a[1])); }
-            case "commands.data.entity.query" -> { if (a.length >= 2) Inventories.onData(str(a[0]), str(a[1])); }
-            case "arguments.nbtpath.nothing_found" -> { if (str(a[0]).startsWith("equipment")) Inventories.noEquipment(); }
+        switch (key) {
+            case "commands.gamerule.query", "commands.gamerule.set" -> { if (a.length >= 2) Rules.put(a[0], a[1]); }
+            case "commands.data.entity.query" -> { if (a.length >= 2) Inventories.onData(a[0], a[1]); }
+            case "arguments.nbtpath.nothing_found" -> { if (a[0].startsWith("equipment")) Inventories.noEquipment(); }
             default -> {}
         }
     }
@@ -81,6 +88,7 @@ public final class Cmd {
 
     /** A command typed in the console: its output goes to the console tab (also slow output and output hidden by sendCommandFeedback=false in your own world). */
     public static void console(String c) {
+        if (Access.server()) { if (!c.isBlank()) Srv.send("c", c); return; }
         if (Access.mode == Access.Mode.LOCAL) {
             if (!Access.allowed || c.isBlank()) return;
             String cmd = c.startsWith("/") ? c.substring(1) : c;
@@ -90,6 +98,7 @@ public final class Cmd {
 
     /** A command whose answer the menu reads (game rule state, inventories). In your own world it is captured directly. */
     public static void query(String c) {
+        if (Access.server()) { Srv.send("q", c); return; }
         if (Access.mode == Access.Mode.LOCAL) {
             if (Access.allowed) Compat.runCapture(c, m -> Minecraft.getInstance().execute(() -> dispatch(m)));
         } else run1(c, false);
@@ -99,6 +108,7 @@ public final class Cmd {
         if (!Access.allowed || c == null || c.isBlank()) return;
         if (c.startsWith("/")) c = c.substring(1);
         mark();
+        if (Access.server()) { Srv.send("run", c); return; }
         if (Access.mode == Access.Mode.LOCAL) { Compat.runLocal(c); return; }
         if (c.length() > 255) return; // vanilla command packet limit
         if (console) CONSOLE.add(c);

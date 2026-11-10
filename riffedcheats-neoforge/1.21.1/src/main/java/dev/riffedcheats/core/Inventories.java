@@ -19,7 +19,7 @@ public final class Inventories {
     public static void request(String name) {
         pending = name;
         pendingAt = System.currentTimeMillis();
-        if (Access.mode == Access.Mode.LOCAL) for (String q : Compat.inventoryQueries(name)) Cmd.query(q);
+        if (Access.direct()) for (String q : Compat.inventoryQueries(name)) Cmd.query(q);
         else for (String path : Compat.inventoryPaths())
             Cmd.ask(path.equals("Inventory") ? "inv" : "eq", name, path, "\"entity\":\"" + name + "\"");
     }

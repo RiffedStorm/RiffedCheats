@@ -19,7 +19,8 @@ import net.minecraft.world.item.Items;
  * summon command uses, so what you see is what spawns.
  */
 public final class MobsPage implements Page {
-    private record Entry(String id, String name, String lower, ItemStack icon, MobCategory cat) {}
+    record Entry(String id, String name, String lower, ItemStack icon, MobCategory cat) {}
+    private static List<Entry> ALL;
     /** One look option: a row of choices; choice 0 adds nothing (the game picks / default). values are SNBT values for key. */
     private record Opt(String label, String key, String[] names, String[] values) {}
 
@@ -35,7 +36,8 @@ public final class MobsPage implements Page {
     private List<Entry> view = List.of();
     private final TextField search = new TextField(), name = new TextField();
     private String lastQuery = null;
-    private int filter, lastFilter = -1, listScroll, count = 1;
+    private final Stars stars = new Stars(Favorites.MOB);
+    private int filter, lastFilter = -1, lastFav = -1, listScroll, count = 1;
     private Entry selected, hovered;
     private boolean noAi, baby, glow, invul, persist, silent, front = true;
     private int x, y, w, h;
@@ -49,8 +51,17 @@ public final class MobsPage implements Page {
 
     @Override public boolean wantsText() { return true; }
 
-    private void init() {
-        if (all != null) return;
+    private void init() { if (all == null) all = entries(); }
+
+    /** Display name of an entity id (the id itself when unknown). */
+    static String nameOf(String id) {
+        for (Entry e : entries()) if (e.id().equals(id)) return e.name();
+        return id;
+    }
+
+    /** Everything that can be summoned, sorted by name. Also used by the Kill Field. */
+    static List<Entry> entries() {
+        if (ALL != null) return ALL;
         Map<String, Item> items = new HashMap<>();
         for (Item it : BuiltInRegistries.ITEM) items.put(BuiltInRegistries.ITEM.getKey(it).toString(), it);
         List<Entry> l = new ArrayList<>();
@@ -64,7 +75,7 @@ public final class MobsPage implements Page {
             l.add(new Entry(id, n, (n + " " + id).toLowerCase(Locale.ROOT), new ItemStack(icon), t.getCategory()));
         }
         l.sort(Comparator.comparing(e -> e.name().toLowerCase(Locale.ROOT)));
-        all = l;
+        return ALL = l;
     }
 
     private boolean pass(Entry e) {
@@ -77,9 +88,11 @@ public final class MobsPage implements Page {
     }
 
     private void refilter() {
-        if (search.text.equals(lastQuery) && filter == lastFilter) return;
+        if (search.text.equals(lastQuery) && filter == lastFilter && Favorites.version == lastFav) return;
+        boolean moved = !search.text.equals(lastQuery) || filter != lastFilter;
         lastQuery = search.text;
         lastFilter = filter;
+        lastFav = Favorites.version;
         String[] q = search.text.toLowerCase(Locale.ROOT).trim().split("\\s+");
         List<Entry> out = new ArrayList<>();
         for (Entry e : all) {
@@ -88,8 +101,8 @@ public final class MobsPage implements Page {
             for (String t : q) if (!t.isEmpty() && !e.lower().contains(t)) { ok = false; break; }
             if (ok) out.add(e);
         }
-        view = out;
-        listScroll = 0;
+        view = Favorites.arrange(Favorites.MOB, out, Entry::id);
+        if (moved) listScroll = 0;
     }
 
     private int rx() { return x + LW + 8; }
@@ -122,7 +135,8 @@ public final class MobsPage implements Page {
             if (hov) hovered = e;
             Ui.rr(g, x, ry, LW, ROWH - 1, e == selected ? Ui.SEL : hov ? Ui.HOVER : Ui.BTN);
             g.item(e.icon(), x + 1, ry);
-            Ui.label(g, e.name(), x + 20, ry + 5, LW - 24, Ui.TEXT);
+            Ui.label(g, e.name(), x + 20, ry + 5, LW - 36, Ui.TEXT);
+            stars.draw(g, e.id(), x + LW - Stars.W, ry, ROWH - 1, mx, my);
         }
         bar.draw(g, x + LW + 2, y + LIST, rows * ROWH - 1, view.size(), rows, listScroll, mx, my);
         g.text(view.size() + " entities", x + 2, y + h - 9, Ui.DIM);
@@ -337,8 +351,10 @@ public final class MobsPage implements Page {
 
         for (int i = 0; i < FILTERS.length; i++) if (Ui.in(mx, my, fx(i), y + 20, FW[i], 14)) { filter = i; return true; }
         int rows = listRows();
-        for (int i = 0; i < rows && listScroll + i < view.size(); i++)
+        for (int i = 0; i < rows && listScroll + i < view.size(); i++) {
+            if (stars.press(view.get(listScroll + i).id(), x + LW - Stars.W, y + LIST + i * ROWH, ROWH - 1, mx, my)) return true;
             if (Ui.in(mx, my, x, y + LIST + i * ROWH, LW, ROWH - 1)) { select(view.get(listScroll + i)); return true; }
+        }
 
         int cy = y + COUNT_Y;
         if (Ui.in(mx, my, rx + 40, cy, 14, 16)) { count = Math.max(1, count - (btn == 1 ? 5 : 1)); return true; }
@@ -389,8 +405,15 @@ public final class MobsPage implements Page {
         }
     }
 
-    @Override public boolean drag(int mx, int my) { if (!bar.dragging()) return false; listScroll = bar.at(my); return true; }
-    @Override public void release() { bar.release(); }
+    @Override
+    public boolean drag(int mx, int my) {
+        if (stars.active()) { stars.drag(my, view.stream().map(Entry::id).toList(), y + LIST, ROWH, listScroll); return true; }
+        if (!bar.dragging()) return false;
+        listScroll = bar.at(my);
+        return true;
+    }
+
+    @Override public void release() { stars.release(); bar.release(); }
 
     @Override
     public boolean scroll(int mx, int my, double dy) {

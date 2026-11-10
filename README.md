@@ -8,7 +8,7 @@ No localhost website. One key, one clean menu, right inside the game.
 ![Minecraft](https://img.shields.io/badge/Minecraft-Java%20Edition-62B47A)
 ![NeoForge](https://img.shields.io/badge/NeoForge-1.21.1-orange)
 ![Fabric](https://img.shields.io/badge/Fabric-26.2-blue)
-![Client side](https://img.shields.io/badge/client--side-only-lightgrey)
+![Client or server](https://img.shields.io/badge/client-%2B%20optional%20server-lightgrey)
 
 <!-- SCREENSHOT 1 (hero) -->
 <!-- Save your screenshot as  docs/screenshots/hero.png  and keep the line below as it is. -->
@@ -41,7 +41,7 @@ Grab the file that matches your game from the **[Releases](../../releases)** pag
 | 1.21.1 | NeoForge 21.1.x | `riffedcheats-neoforge-1.21.1-<version>.jar` |
 | 26.2 | Fabric Loader 0.19.5+ and Fabric API | `riffedcheats-fabric-26.2-<version>.jar` |
 
-It is a **client-side** mod. You only install it on your own PC. Nothing needs to be installed on the server.
+You only need it on your own PC. Installing the **same jar on a server** is optional and unlocks [Server Mode](#server-owner-notes).
 
 ---
 
@@ -49,16 +49,16 @@ It is a **client-side** mod. You only install it on your own PC. Nothing needs t
 
 | Category | What you get |
 |---|---|
-| **Self** | God Mode, Auto Heal, Infinite Hunger, No Fall Damage, Fullbright, gamemode, set your spawnpoint where you stand, heal / clear effects / clear inventory, **inventory editor** (items, counts, enchantments, repair, unbreakable), Flight (+ speed), Walk Speed, High Jump, Step Assist, Low Gravity, Infinite Jump, Auto Sprint, Extended Reach, 11 more potion effects with level sliders |
+| **Self** | God Mode, Auto Heal, Infinite Hunger, No Fall Damage, Fullbright, Kill Myself, gamemode, set your spawnpoint where you stand, heal / clear effects / clear inventory, **inventory editor** (items, counts, enchantments, repair, rename, unbreakable and back, **infinite items**), Flight (+ speed), Walk Speed, High Jump, Step Assist, Low Gravity, Infinite Jump, Auto Sprint, Extended Reach, 11 more potion effects with level sliders |
 | **XP / Level** | Set any level, **freeze** it (checked every tick, a command is only sent when the level really changes, so no lag) |
-| **Combat** | Kill Aura, **Always Crit** (works on the ground, no jumping), **No Attack Delay** (spam full-damage hits), Anti-Knockback |
+| **Combat** | Kill Aura, **Always Crit** (works on the ground, no jumping), **No Attack Delay** (spam full-damage hits), Anti-Knockback (also explosions), **Instant Shield Block** and **No Shield Cooldown** (Server Mode) |
 | **World** | Time (skips *forward*, so the day counter never resets), weather, difficulty, **live game rule switches** (green ON / red OFF); **ProtoManly's Weather** storms when that mod is installed |
-| **Teleport** | **Saved locations** with names, per world / server and per dimension (teleports work across dimensions), **teleport to your last death**, world spawn, quick up / down / sky |
-| **Items** | **Item spawner** with search + big icon preview on hover, enchantment editor, count, *Infinite Durability*, over-max enchant levels; **God Armor** and **God Tools** in one click |
-| **Mobs** | **Mob summoner** with search, Hostile / Passive / Other filter, **live 3D preview**, per-mob looks (wolf / cat / frog variants, collars, tamed, horse colors & markings, sheep wool, panda genes...), count, No AI / Baby / Glowing / Invincible / No Despawn / Silent, custom name; **Villagers**: summon villagers or wandering traders with job, biome, level, options and **custom trades** (any item, held items with all their data, uses limit, fixed prices); cleanup buttons |
+| **Teleport** | **Saved locations** with names, per world / server and per dimension (teleports work across dimensions), **on-screen markers** with distance, **teleport to your last death**, world spawn, quick up / down / sky |
+| **Items** | **Item spawner** with search + big icon preview on hover, enchantment editor, count, *Infinite Durability*, over-max enchant levels, search that also reads tooltips, starred favorites you can sort; **God Armor** and **God Tools** in one click |
+| **Mobs** | **Mob summoner** with search, Hostile / Passive / Other filter, **live 3D preview**, per-mob looks (wolf / cat / frog variants, collars, tamed, horse colors & markings, sheep wool, panda genes...), count, No AI / Baby / Glowing / Invincible / No Despawn / Silent, custom name; **Villagers**: summon villagers or wandering traders with job, biome, level, options and **custom trades** (any item, held items with all their data, uses limit, fixed prices); **Kill Field** (pick mobs, radius up to 64); cleanup buttons |
 | **Players** | Online player list (heads + ping, like the Tab list) with admin actions: teleport, bring, heal, gamemode, gift God gear, **edit their inventory**, launch, freeze, blind, lightning, kick and more |
 | **Console** | Command executor with live suggestions and history, **click coordinates** (e.g. from /locate) to teleport, clear log / history, **no "allow cheats" needed in your own world** |
-| **Settings** | Autosave (on by default), manual save, disable everything, reset server-side values, reset all sliders; **in-game updater**: checks GitHub releases and updates with one click, reloading the menu **without restarting or leaving your world** |
+| **Settings** | Autosave (on by default), manual save, **named configs** with autoload, **Auto / Client Side / Server Side** switch, disable everything, reset server-side values, reset all sliders; **in-game updater**: checks GitHub releases and updates with one click, reloading the menu **without restarting or leaving your world** |
 
 <!-- SCREENSHOT 2 -->
 ![Item spawner with icon preview](docs/screenshots/item-spawner.png)
@@ -158,7 +158,11 @@ Full step-by-step instructions are in `BUILDING.md` inside each source folder.
 
 ## Server owner notes
 
-The mod does everything through normal vanilla commands, so **no server mod is required**.
+The menu works through normal vanilla commands, so **no server mod is required**.
+
+**Server Mode (optional):** put the same jar in the server's `mods` folder. The menu detects it and switches by itself (singleplayer and Open to LAN always have it). Players without the mod can still join, and only operators can use it. In Server Mode nothing reaches anyone's chat, and you get real God Mode, Infinite Items, Instant Shield Block, No Shield Cooldown, Auto Repair, an Item + XP Magnet, and Flight without `allow-flight`.
+
+Without the mod on the server (Client Mode):
 
 - Players need to be **OP (permission level 2+)**. `/deop` instantly cuts their menu.
 - **Flight** needs `allow-flight=true` in `server.properties`, otherwise vanilla kicks hovering players.
@@ -169,7 +173,8 @@ The mod does everything through normal vanilla commands, so **no server mod is r
   /attribute <player> minecraft:generic.step_height base set 0.6        (1.21.1)
   /attribute <player> minecraft:step_height base set 0.6                (26.2)
   ```
-- Potion-style features (God Mode, Speed, ...) are given as 30-second effects and refreshed by the client, so they fade out by themselves after a `/deop`.
+- Potion-style features (God Mode, Speed, ...) are given once as long-lasting effects, so commands do not repeat. **After a `/deop` use Reset Attributes + Effects** as above.
+- Other operators see the menu's commands in chat unless `sendCommandFeedback` is off. Server Mode does not have this.
 
 ---
 
@@ -179,7 +184,7 @@ The mod does everything through normal vanilla commands, so **no server mod is r
 Yes.
 
 **The menu says "No Operator" in my own singleplayer world.**
-It should say *Singleplayer / LAN host*. If not, open an issue.
+It should say *Server Mode*. If not, open an issue.
 
 ---
 

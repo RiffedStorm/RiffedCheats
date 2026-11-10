@@ -4,7 +4,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /** Every category / tab / setting in the menu. Add new features here (UI) and in Features.java (logic). */
@@ -101,13 +103,17 @@ public final class Menu {
 
     // ---------------- Combat ----------------
     public static final Setting AURA = t("Kill Aura", false);
-    public static final Setting AURA_RANGE = s("Aura Range", 1, 6, 0.5f, 4);
+    public static final Setting AURA_RANGE = s("Aura Range", 1, 12, 0.5f, 4);
     public static final Setting AURA_DELAY = s("Aura Delay (ticks)", 1, 20, 1, 4);
     public static final Setting AURA_HOSTILE = t("Hostile Mobs Only", true);
     public static final Setting AURA_PLAYERS = t("Target Players", false);
+    public static final Setting AURA_WALLS = t("Hit Through Walls", true);
+    public static final Setting AURA_SPARE = t("Spare Named Mobs + Pets", true);
     public static final Setting CRIT = t("Always Crit (works on ground)", false);
     public static final Setting NODELAY = t("No Attack Delay", false);
     public static final Setting ANTIKB = t("Anti-Knockback", false);
+    public static final Setting INSTANT_BLOCK = t("Instant Shield Block", false).needsServer();
+    public static final Setting NO_SHIELD_CD = t("No Shield Cooldown", false).needsServer();
 
     public static final Setting FULLBRIGHT = t("Fullbright", false);
     // Freecam is disabled for now (crashed on dedicated servers): not in the menu, not saved, always off.
@@ -123,6 +129,20 @@ public final class Menu {
     public static final Setting TIME_CUSTOM = s("Custom Time (ticks)", 0, 24000, 100, 6000);
     public static final Setting AUTOSAVE = t("Autosave", true);
     public static final Setting UPDATE_CHECK = t("Check for Updates", true);
+    public static final Setting MULTI_CONFIG = t("Multiple Configs", false);
+    /** 0 = Auto, 1 = Client Side, 2 = Server Side (Settings > Server). */
+    public static final Setting CONN = s("Connection Mode", 0, 2, 1, 0);
+
+    // ---------------- Mobs > Kill Field ----------------
+    public static final Setting KILL_ON = t("Kill Field", false);
+    public static final Setting KILL_RADIUS = s("Kill Field Radius", 4, 64, 4, 64);
+    public static final Setting KILL_NAMED = t("Kill Field: Spare Named", true);
+    public static final Setting KILL_PETS = t("Kill Field: Spare Pets", true);
+
+    // ---------------- Items > Helpers ----------------
+    public static final Setting AUTO_REPAIR = t("Auto Repair Gear", false).needsServer();
+    public static final Setting MAGNET = t("Item + XP Magnet", false).needsServer();
+    public static final Setting MAGNET_RANGE = s("Magnet Range", 2, 32, 1, 10).needsServer();
 
     // ---------------- ProtoManly's Weather (only when the mod is installed) ----------------
     public static final Setting PM_SC_STAGE = s("Supercell Stage", 0, 2, 1, 1), PM_SC_ENERGY = s("Supercell Energy", 1, 99, 1, 50);
@@ -141,9 +161,10 @@ public final class Menu {
                 row("Quick", "Heal + Feed", act(() -> Cmd.run("effect give @s minecraft:instant_health 1 10 true", "effect give @s minecraft:saturation 1 10 true")),
                     "Clear My Effects", "effect clear @s"),
                 cmd("Clear My Inventory", "clear @s"),
-                lab("God = Resistance V. Everything here uses effects/attributes, so it works on servers too (you must be OP).")),
+                cmd("Kill Myself", "kill @s").red(),
+                lab("God: real invulnerability in Server Mode, Resistance V in Client Mode.")),
             tab("Movement", FLIGHT, FLY_SPEED, SPEED, effLvl(SPEED), JUMP, effLvl(JUMP), STEP, STEP_H, LOWGRAV, GRAV_MULT, INFJUMP, AUTOSPRINT,
-                lab("Flight on a dedicated server needs allow-flight=true.")),
+                lab("In Client Mode, Flight on a dedicated server needs allow-flight=true.")),
             tab("Reach", REACH, BLOCK_REACH, ENTITY_REACH,
                 lab("Reach/Step/Gravity/Anti-KB/No Delay/No Fall change server attributes."),
                 lab("Turn them off here to reset them. Use Settings > Reset after a /deop.")),
@@ -158,10 +179,14 @@ public final class Menu {
             page("Inventory", new InventoryPage(null, null)));
 
         cat("Combat",
-            tab("Aura", AURA, AURA_RANGE, AURA_DELAY, AURA_HOSTILE, AURA_PLAYERS),
+            tab("Aura", AURA, AURA_RANGE, AURA_DELAY, AURA_HOSTILE, AURA_PLAYERS, AURA_WALLS, AURA_SPARE),
             tab("Attack", CRIT, NODELAY, ANTIKB,
                 lab("Always Crit sends tiny hop packets before each hit, no jumping needed."),
-                lab("No Attack Delay removes the cooldown bar: spam hits at full damage.")));
+                lab("No Attack Delay removes the cooldown bar: spam hits at full damage."),
+                lab("Anti-Knockback also covers explosions.")),
+            tab("Shield", INSTANT_BLOCK, NO_SHIELD_CD,
+                lab("Instant Shield Block: the shield works the moment you raise it."),
+                lab("No Shield Cooldown: axes can no longer disable your shield.")));
 
         cat("World",
             tab("Time",
@@ -208,11 +233,15 @@ public final class Menu {
                 cmd("Firework Rockets x64", "give @s minecraft:firework_rocket 64"), cmd("Diamonds x64", "give @s minecraft:diamond 64"),
                 cmd("Netherite Ingots x64", "give @s minecraft:netherite_ingot 64"), cmd("Ender Pearls x16", "give @s minecraft:ender_pearl 16"),
                 cmd("XP Bottles x64", "give @s minecraft:experience_bottle 64"), cmd("TNT x64", "give @s minecraft:tnt 64"),
-                cmd("Shulker Box", "give @s minecraft:shulker_box"), cmd("Command Block", "give @s minecraft:command_block")));
+                cmd("Shulker Box", "give @s minecraft:shulker_box"), cmd("Command Block", "give @s minecraft:command_block")),
+            tab("Helpers", AUTO_REPAIR, MAGNET, MAGNET_RANGE,
+                lab("Auto Repair keeps everything you carry at full durability."),
+                lab("The Magnet pulls dropped items and XP orbs to you.")));
 
         cat("Mobs",
             page("Summon", new MobsPage()),
             page("Villagers", new VillagerPage()),
+            page("Kill Field", new KillFieldPage()),
             tab("Cleanup",
                 cmd("Kill Mobs Within 64m (not players/items)", "kill @e[type=!minecraft:player,type=!minecraft:item,distance=..64]"),
                 cmd("Remove Dropped Items Within 64m", "kill @e[type=minecraft:item,distance=..64]"),
@@ -228,6 +257,8 @@ public final class Menu {
                 b("Reset Server Attributes + Effects", Features::resetServerState),
                 lab("Autosave is ON by default. Turn it off to keep changes temporary."),
                 lab("Your settings are kept in memory when you lose OP and come back when you regain it.")),
+            page("Configs", new ConfigsPage()),
+            page("Server", new ServerPage()),
             page("Updates", new UpdatesPage()));
     }
 
@@ -247,14 +278,15 @@ public final class Menu {
     }
 
     public static void resetSliders() {
-        for (Setting st : ALL) if (st.kind == Setting.Kind.SLIDER) st.value = st.def;
+        for (Setting st : ALL) if (st.kind == Setting.Kind.SLIDER && st != CONN) st.value = st.def;
         changed();
     }
 
     private static void bump(int d) { XP_LEVEL.value = Math.max(0, Math.min(100000, XP_LEVEL.value + d)); changed(); }
 
     public static void disableAll() {
-        for (Setting st : ALL) if (st.kind == Setting.Kind.TOGGLE && st != AUTOSAVE && st != UPDATE_CHECK && st != UNBREAKABLE && st != OVERLEVEL && st != VILL_UNLIMITED) st.on = false;
+        for (Setting st : ALL) if (st.kind == Setting.Kind.TOGGLE && st != AUTOSAVE && st != UPDATE_CHECK && st != UNBREAKABLE && st != OVERLEVEL && st != VILL_UNLIMITED
+                && st != MULTI_CONFIG && st != KILL_NAMED && st != KILL_PETS && st != AURA_SPARE && st != AURA_WALLS) st.on = false;
         changed();
     }
 
@@ -264,22 +296,47 @@ public final class Menu {
 
     private static Path file() { return Compat.configDir().resolve("riffedcheats.properties"); }
 
-    public static void save() {
+    private static final Map<String, String> STRINGS = new HashMap<>();
+    private static final String STR = "str.";
+
+    /** A saved text value (for example the Kill Field's mob list). */
+    public static String str(String k) { return STRINGS.getOrDefault(k, ""); }
+    public static void setStr(String k, String v) { STRINGS.put(k, v); changed(); }
+
+    /** Settings about the menu itself, which a named config must not change. */
+    private static boolean notInConfig(Setting st) { return st == MULTI_CONFIG || st == CONN || st == AUTOSAVE || st == UPDATE_CHECK; }
+
+    static Properties snapshot(boolean config) {
         Properties p = new Properties();
-        for (Setting st : ALL) p.setProperty(st.name, st.kind == Setting.Kind.TOGGLE ? Boolean.toString(st.on) : Float.toString(st.value));
-        try (var w = Files.newBufferedWriter(file())) { p.store(w, "RiffedCheats"); } catch (IOException ignored) {}
+        for (Setting st : ALL) {
+            if (config && notInConfig(st)) continue;
+            p.setProperty(st.name, st.kind == Setting.Kind.TOGGLE ? Boolean.toString(st.on) : Float.toString(st.value));
+        }
+        STRINGS.forEach((k, v) -> p.setProperty(STR + k, v));
+        return p;
     }
 
-    /** First launch (no file): defaults apply, Autosave is ON. */
-    public static void load() {
-        Properties p = new Properties();
-        try (var r = Files.newBufferedReader(file())) { p.load(r); } catch (IOException e) { return; }
+    static void apply(Properties p, boolean config) {
         for (Setting st : ALL) {
+            if (config && notInConfig(st)) continue;
             String v = p.getProperty(st.name);
             if (v == null) continue;
             try {
                 if (st.kind == Setting.Kind.TOGGLE) st.on = Boolean.parseBoolean(v); else st.value = Float.parseFloat(v);
             } catch (NumberFormatException ignored) {}
         }
+        for (String k : p.stringPropertyNames()) if (k.startsWith(STR)) STRINGS.put(k.substring(STR.length()), p.getProperty(k));
+    }
+
+    public static void save() {
+        try (var w = Files.newBufferedWriter(file())) { snapshot(false).store(w, "RiffedCheats"); } catch (IOException ignored) {}
+    }
+
+    /** First launch (no file): defaults apply, Autosave is ON. */
+    public static void load() {
+        Properties p = new Properties();
+        try (var r = Files.newBufferedReader(file())) { p.load(r); } catch (IOException e) { return; }
+        apply(p, false);
+        if (MULTI_CONFIG.on) { String a = Configs.autoload(); if (a != null) Configs.load(a); }
     }
 }

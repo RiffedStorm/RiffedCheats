@@ -12,6 +12,8 @@ public final class Setting {
     public final Runnable action;
     public final String[] opts;     // BUTTONS: labels, RULE: { game rule id }
     public final Runnable[] acts;   // BUTTONS only
+    public boolean danger;          // BUTTON: drawn red
+    public boolean serverOnly;      // works only when RiffedCheats is on the server too
 
     private Setting(String name, Kind kind, boolean on, float value, float min, float max, float step, Runnable action,
                     String[] opts, Runnable[] acts) {
@@ -21,7 +23,11 @@ public final class Setting {
     }
 
     /** True only when the toggle is on AND the player currently has permission to use the menu. */
-    public boolean active() { return on && Access.allowed; }
+    public boolean active() { return on && Access.allowed && usable(); }
+    /** False (and greyed out in the menu) when this needs the server part of the mod and it is not available here. */
+    public boolean usable() { return !serverOnly || Access.server(); }
+    public Setting needsServer() { serverOnly = true; return this; }
+    public Setting red() { danger = true; return this; }
     public int intValue() { return Math.round(value); }
 
     public static Setting toggle(String n, boolean def) { return new Setting(n, Kind.TOGGLE, def, 0, 0, 0, 0, null, null, null); }

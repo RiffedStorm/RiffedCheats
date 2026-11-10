@@ -6,6 +6,8 @@ import java.util.List;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
@@ -37,6 +39,9 @@ public class RiffedCheats implements ClientModInitializer {
         } catch (Throwable ignored) {}
         Loader.init(jar);
 
+        ClientPlayNetworking.registerGlobalReceiver(Msg.TYPE, (m, ctx) -> Loader.core().onServer(m.data()));
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath(MODID, "waypoints"), (g, dt) -> Loader.core().hud(g));
+
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             while (TOGGLE.consumeClick()) {
                 if (mc.gui.screen() == null && mc.player != null) Loader.core().openMenu();
@@ -59,4 +64,10 @@ public class RiffedCheats implements ClientModInitializer {
         UseBlockCallback.EVENT.register((player, level, hand, hit) -> Loader.core().freecamOn() ? InteractionResult.FAIL : InteractionResult.PASS);
         UseItemCallback.EVENT.register((player, level, hand) -> Loader.core().freecamOn() ? InteractionResult.FAIL : InteractionResult.PASS);
     }
+
+    /** True when the server you are on has RiffedCheats too. */
+    public static boolean canSend() {
+        return net.minecraft.client.Minecraft.getInstance().getConnection() != null && ClientPlayNetworking.canSend(Msg.TYPE);
+    }
+    public static void send(String data) { ClientPlayNetworking.send(new Msg(data)); }
 }

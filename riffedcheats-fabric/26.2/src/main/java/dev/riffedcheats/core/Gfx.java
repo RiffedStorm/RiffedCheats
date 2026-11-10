@@ -11,6 +11,8 @@ import net.minecraft.world.item.ItemStack;
 public final class Gfx {
     private final GuiGraphicsExtractor g;
     public Gfx(GuiGraphicsExtractor g) { this.g = g; }
+    /** From the stub's HUD hook, which only knows it as an Object. */
+    public static Gfx of(Object g) { return new Gfx((GuiGraphicsExtractor) g); }
 
     private static Font font() { return Minecraft.getInstance().font; }
     public static int textWidth(String s) { return font().width(s); }

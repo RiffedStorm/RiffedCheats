@@ -16,7 +16,10 @@ import net.minecraft.client.player.LocalPlayer;
  * (one tab-separated line each), plus your last death point. Teleports use "execute in", so they work across dimensions.
  */
 public final class Teleports {
-    public record Loc(String world, String dim, String name, double x, double y, double z, float yaw, float pitch) {
+    public record Loc(String world, String dim, String name, double x, double y, double z, float yaw, float pitch, boolean marker) {
+        public Loc(String world, String dim, String name, double x, double y, double z, float yaw, float pitch) {
+            this(world, dim, name, x, y, z, yaw, pitch, false);
+        }
         public String coords() { return (int) Math.floor(x) + ", " + (int) Math.floor(y) + ", " + (int) Math.floor(z); }
     }
 
@@ -35,7 +38,7 @@ public final class Teleports {
                 if (f.length < 8) continue;
                 try {
                     all.add(new Loc(f[0], f[1], f[2], Double.parseDouble(f[3]), Double.parseDouble(f[4]), Double.parseDouble(f[5]),
-                            Float.parseFloat(f[6]), Float.parseFloat(f[7])));
+                            Float.parseFloat(f[6]), Float.parseFloat(f[7]), f.length > 8 && f[8].equals("1")));
                 } catch (NumberFormatException ignored) {}
             }
         } catch (IOException ignored) {}
@@ -45,7 +48,7 @@ public final class Teleports {
     private static void save() {
         List<String> out = new ArrayList<>();
         for (Loc l : all())
-            out.add(String.join("\t", l.world(), l.dim(), l.name(), num(l.x()), num(l.y()), num(l.z()), num(l.yaw()), num(l.pitch())));
+            out.add(String.join("\t", l.world(), l.dim(), l.name(), num(l.x()), num(l.y()), num(l.z()), num(l.yaw()), num(l.pitch()), l.marker() ? "1" : "0"));
         try { Files.write(file(), out, StandardCharsets.UTF_8); } catch (IOException ignored) {}
     }
 
@@ -99,8 +102,24 @@ public final class Teleports {
     public static void rename(Loc l, String name) {
         int i = all().indexOf(l);
         if (i < 0 || clean(name).isEmpty()) return;
-        all().set(i, new Loc(l.world(), l.dim(), clean(name), l.x(), l.y(), l.z(), l.yaw(), l.pitch()));
+        all().set(i, new Loc(l.world(), l.dim(), clean(name), l.x(), l.y(), l.z(), l.yaw(), l.pitch(), l.marker()));
         save();
+    }
+
+    /** Turns the on-screen marker of a saved spot on or off. */
+    public static void toggleMarker(Loc l) {
+        int i = all().indexOf(l);
+        if (i < 0) return;
+        all().set(i, new Loc(l.world(), l.dim(), l.name(), l.x(), l.y(), l.z(), l.yaw(), l.pitch(), !l.marker()));
+        save();
+    }
+
+    /** Spots with a marker in the world and dimension you are in now. */
+    public static List<Loc> waypoints() {
+        String w = Compat.worldId(), d = Compat.dimension();
+        List<Loc> out = new ArrayList<>();
+        for (Loc l : all()) if (l.marker() && l.world().equals(w) && l.dim().equals(d)) out.add(l);
+        return out;
     }
 
     public static void tp(Loc l) {

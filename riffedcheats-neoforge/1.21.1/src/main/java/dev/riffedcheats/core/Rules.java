@@ -23,7 +23,7 @@ public final class Rules {
         Boolean v = STATE.get(norm(id));
         if (v == null && System.currentTimeMillis() - ASKED.getOrDefault(norm(id), 0L) > 5000) {
             ASKED.put(norm(id), System.currentTimeMillis());
-            if (Access.mode == Access.Mode.LOCAL) Cmd.query("gamerule " + id);
+            if (Access.direct()) Cmd.query("gamerule " + id);
             else {
                 String k = norm(id).replaceAll("[^a-z0-9_]", "_");
                 Cmd.query("execute store result storage " + Cmd.STORAGE + " " + k + " int 1 run gamerule " + id);

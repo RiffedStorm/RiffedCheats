@@ -14,7 +14,7 @@ public final class Loader {
     private static final String CORE = "dev.riffedcheats.core.";
 
     /** Bump when Core / Loader / the entry point change in a way an old copy cannot serve. */
-    public static int api() { return 1; }
+    public static int api() { return 2; }
 
     private static volatile Core core;
     private static Path jar;   // jar the running core came from; null = dev build (no hot swap)
@@ -69,6 +69,8 @@ public final class Loader {
         @Override public void frame() { run(() -> { core.frame(); return null; }); }
         @Override public boolean freecamOn() { return run(() -> core.freecamOn()); }
         @Override public void openMenu() { run(() -> { core.openMenu(); return null; }); }
+        @Override public void onServer(String data) { run(() -> { core.onServer(data); return null; }); }
+        @Override public void hud(Object g) { run(() -> { core.hud(g); return null; }); }
     }
 
     private static void fallback() {

@@ -6,7 +6,7 @@ import net.minecraft.client.player.LocalPlayer;
 
 /** Saved teleport locations per dimension (tabs on top), save-here with a name, last death, go / rename / delete, drag to sort. */
 public final class TeleportPage implements Page {
-    private static final int ROWH = 18, LIST = 80, BTN = 44;
+    private static final int ROWH = 18, LIST = 80, BTN = 44, MARK = 44;
 
     private final TextField name = new TextField();
     private String dim;                 // selected dimension tab
@@ -24,6 +24,7 @@ public final class TeleportPage implements Page {
 
     private int rows() { return Math.max(1, (h - LIST - 12) / ROWH); }
     private int goX() { return x + w - 3 * BTN - 8; }
+    private int markerX() { return goX() - MARK - 4; }
     private int renX() { return x + w - 2 * BTN - 4; }
     private int delX() { return x + w - BTN; }
 
@@ -90,9 +91,10 @@ public final class TeleportPage implements Page {
         Ui.rr(g, x, ry, w, ROWH - 1, lifted ? Ui.SEL : Ui.in(mx, my, x, ry, w, ROWH - 1) ? Ui.HOVER : Ui.BTN);
         for (int k = 0; k < 3; k++) g.fill(x + 5, ry + 5 + k * 3, x + 11, ry + 6 + k * 3, Ui.DIM);   // grip
         String c = l.coords();
-        int cxr = goX() - 8 - g.width(c);
+        int cxr = markerX() - 8 - g.width(c);
         Ui.label(g, l.name(), x + 16, ry + 5, cxr - x - 24, Ui.TEXT);
         g.text(c, cxr, ry + 5, Ui.DIM);
+        Ui.stateButton(g, "Marker", markerX(), ry, MARK, ROWH - 1, Ui.in(mx, my, markerX(), ry, MARK, ROWH - 1), l.marker() ? Boolean.TRUE : null);
         Ui.button(g, "Go", goX(), ry, BTN, ROWH - 1, Ui.in(mx, my, goX(), ry, BTN, ROWH - 1), false);
         Ui.button(g, "Rename", renX(), ry, BTN, ROWH - 1, Ui.in(mx, my, renX(), ry, BTN, ROWH - 1), false);
         Ui.button(g, l.equals(armed) ? "Sure?" : "Delete", delX(), ry, BTN, ROWH - 1, Ui.in(mx, my, delX(), ry, BTN, ROWH - 1), true);
@@ -139,13 +141,14 @@ public final class TeleportPage implements Page {
         for (int i = 0; i < rows && scroll + i < list.size(); i++) {
             Teleports.Loc l = list.get(scroll + i);
             int ry = y + LIST + i * ROWH;
+            if (Ui.in(mx, my, markerX(), ry, MARK, ROWH - 1)) { Teleports.toggleMarker(l); return true; }
             if (Ui.in(mx, my, goX(), ry, BTN, ROWH - 1)) { Teleports.tp(l); return true; }
             if (Ui.in(mx, my, renX(), ry, BTN, ROWH - 1)) { Teleports.rename(l, name.text); name.text = ""; return true; }
             if (Ui.in(mx, my, delX(), ry, BTN, ROWH - 1)) {
                 if (l.equals(wasArmed)) Teleports.remove(l); else armed = l;
                 return true;
             }
-            if (Ui.in(mx, my, x, ry, goX() - x, ROWH - 1) && list.size() > 1) {   // grab the row (anywhere left of the buttons)
+            if (Ui.in(mx, my, x, ry, markerX() - x, ROWH - 1) && list.size() > 1) {   // grab the row (anywhere left of the buttons)
                 dragged = l;
                 grabOff = my - ry;
                 dragMy = my;

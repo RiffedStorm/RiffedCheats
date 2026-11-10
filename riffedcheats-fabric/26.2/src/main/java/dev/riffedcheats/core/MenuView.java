@@ -39,7 +39,9 @@ public final class MenuView {
             g.text(b, bx, 6, Updater.justUpdated() ? Ui.GREEN : Ui.ACCENT);
         }
         String badge = Access.label();
-        g.text(badge, DW - 6 - g.width(badge), 6, Access.allowed ? Ui.GREEN : Ui.RED);
+        boolean warn = Access.mode == Access.Mode.OP && ServerPage.feedbackOn();
+        if (warn) badge += " - other OPs see commands";
+        g.text(badge, DW - 6 - g.width(badge), 6, Access.server() ? Ui.GREEN : Access.allowed ? (warn ? Ui.RED : 0xFFE0C04C) : Ui.RED);
 
         Ui.button(g, "Close", SX, SY, SW, 20, Ui.in(mx, my, SX, SY, SW, 20), false);
 
@@ -94,6 +96,7 @@ public final class MenuView {
     private void drawDenied(Gfx g) {
         Ui.rr(g, SX, SY + 28, DW - 12, DH - SY - 34, Ui.PANEL);
         int cy = SY + 70;
+        if (Access.mode == Access.Mode.WAIT) { Ui.center(g, "Connecting to RiffedCheats on this server...", SX, cy, DW - 12, Ui.TEXT); return; }
         Ui.center(g, "Operator permissions required", SX, cy, DW - 12, Ui.RED);
         cy += 20;
         String[] lines = {
@@ -121,8 +124,15 @@ public final class MenuView {
             Ui.stateButton(g, v == null ? "..." : v ? "ON" : "OFF", bx, ry, 90, ROW, Ui.in(mx, my, bx, ry, 90, ROW), v);
             return;
         }
+        if (!s.usable()) {      // needs the server part of the mod, which is not on this server
+            Ui.rr(g, BX, ry, BW, ROW, Ui.DARK);
+            String need = "Needs RiffedCheats on the server";
+            g.text(Ui.fit(g, s.name, BW - g.width(need) - 24), BX + 8, ry + 6, Ui.DIM);
+            g.text(need, BX + BW - 8 - g.width(need), ry + 6, Ui.DIM & 0xA0FFFFFF);
+            return;
+        }
         boolean hov = Ui.in(mx, my, BX, ry, BW, ROW);
-        Ui.rr(g, BX, ry, BW, ROW, hov ? Ui.HOVER : Ui.BTN);
+        Ui.rr(g, BX, ry, BW, ROW, s.danger ? (hov ? Ui.REDHOV : Ui.REDBTN) : hov ? Ui.HOVER : Ui.BTN);
         switch (s.kind) {
             case BUTTON -> Ui.center(g, Ui.fit(g, s.name, BW - 12), BX, ry + 6, BW, Ui.TEXT);
             case TOGGLE -> {
@@ -200,6 +210,7 @@ public final class MenuView {
             int ry = BY + i * STEP;
             if (!Ui.in(mx, my, BX, ry, BW, ROW)) continue;
             Setting s = list.get(scroll + i);
+            if (!s.usable()) return false;
             switch (s.kind) {
                 case TOGGLE -> { s.on = !s.on; Menu.changed(); }
                 case BUTTON -> s.action.run();

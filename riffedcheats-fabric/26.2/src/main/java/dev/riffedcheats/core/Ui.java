@@ -65,20 +65,44 @@ public final class Ui {
 
     public static void button(Gfx g, String label, int x, int y, int w, int h, boolean hover, boolean danger) {
         rr(g, x, y, w, h, danger ? (hover ? REDHOV : REDBTN) : (hover ? HOVER : BTN));
-        center(g, fit(g, label, w - 6), x, y + (h - 8) / 2, w, TEXT);
+        fitCenter(g, label, x, y + (h - 8) / 2, w, TEXT);
     }
+
+    /** A button that cannot be used here. */
+    public static void greyButton(Gfx g, String label, int x, int y, int w, int h) {
+        rr(g, x, y, w, h, DARK);
+        fitCenter(g, label, x, y + (h - 8) / 2, w, DIM & 0xA0FFFFFF);
+    }
+
+    /** Centered text that shrinks (down to 70%) to fit a button instead of being cut. */
+    private static void fitCenter(Gfx g, String s, int x, int y, int w, int color) {
+        int max = w - 6, tw = g.width(s);
+        if (tw <= max) { g.text(s, x + (w - tw) / 2, y, color); return; }
+        float sc = Math.max(0.7f, (float) max / tw);
+        String t = fit(g, s, (int) (max / sc));
+        g.push();
+        g.translate(x + (w - g.width(t) * sc) / 2f, y + (1 - sc) * 4);
+        g.scale(sc);
+        g.text(t, 0, 0, color);
+        g.pop();
+    }
+
+    /** Text color for an enchantment's name: curses are red. */
+    public static int enchColor(String id) { return Compat.enchantCurse(id) ? 0xFFFF7A7A : TEXT; }
+    /** Row background of an enchantment; level > 0 is highlighted, curses in red. */
+    public static int enchRow(String id, int lv) { return lv <= 0 ? BTN : Compat.enchantCurse(id) ? REDBTN : SEL; }
 
     /** Button that stays highlighted while selected (e.g. the count preset that is currently active). */
     public static void selButton(Gfx g, String label, int x, int y, int w, int h, boolean hover, boolean selected) {
         rr(g, x, y, w, h, selected ? SEL : hover ? HOVER : BTN);
-        center(g, fit(g, label, w - 6), x, y + (h - 8) / 2, w, TEXT);
+        fitCenter(g, label, x, y + (h - 8) / 2, w, TEXT);
     }
 
     /** Button colored by state: green = on, red = off, normal = unknown. */
     public static void stateButton(Gfx g, String label, int x, int y, int w, int h, boolean hover, Boolean on) {
         int c = on == null ? (hover ? HOVER : BTN) : on ? (hover ? 0xFF3A9A63 : 0xFF2E7D4F) : (hover ? 0xFFA03A48 : 0xFF86303C);
         rr(g, x, y, w, h, c);
-        center(g, fit(g, label, w - 6), x, y + (h - 8) / 2, w, TEXT);
+        fitCenter(g, label, x, y + (h - 8) / 2, w, TEXT);
     }
 
     public static void pill(Gfx g, int x, int y, boolean on) {

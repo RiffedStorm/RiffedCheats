@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -51,14 +52,18 @@ public final class Features {
     }
     private static final Attr A_STEP = new Attr("step_height", 0.6), A_BREACH = new Attr("block_interaction_range", 4.5),
             A_EREACH = new Attr("entity_interaction_range", 3.0), A_KB = new Attr("knockback_resistance", 0.0),
-            A_SPEED = new Attr("attack_speed", 4.0), A_FALL = new Attr("fall_damage_multiplier", 1.0), A_GRAV = new Attr("gravity", 0.08);
-    private static final Attr[] ATTRS = { A_STEP, A_BREACH, A_EREACH, A_KB, A_SPEED, A_FALL, A_GRAV };
+            A_SPEED = new Attr("attack_speed", 4.0), A_FALL = new Attr("fall_damage_multiplier", 1.0), A_GRAV = new Attr("gravity", 0.08),
+            A_EKB = new Attr("explosion_knockback_resistance", 0.0);
+    private static final Attr[] ATTRS = { A_STEP, A_BREACH, A_EREACH, A_KB, A_SPEED, A_FALL, A_GRAV, A_EKB };
+    private static final Map<UUID, Long> killSent = new HashMap<>();
+    private static final int ORPHAN = 500_000;   // an effect this long can only have come from this menu
 
     public static boolean freecamOn() { return cam != null; }
 
     // =====================================================================================
     public static void tick() {
         Minecraft mc = Minecraft.getInstance();
+        Srv.tick();
         Access.update(mc);
         LocalPlayer p = mc.player;
         ClientLevel level = mc.level;
@@ -68,7 +73,12 @@ public final class Features {
 
         Teleports.tick(p);
         client(p, level, mc);
-        if (Access.allowed) { Cmd.tick(); server(p); keepTradesUnlimited(p, level); } else Cmd.clear();
+        if (Access.allowed) {
+            Cmd.tick();
+            server(p);
+            keepTradesUnlimited(p, level);
+            if (KILL_ON.active() && ticks % 5 == 0) killPass(false);
+        } else Cmd.clear();
 
         if (resumeSprint) { resumeSprint = false; if (p.isSprinting()) Compat.sendSprint(p, true); }
     }
@@ -86,6 +96,32 @@ public final class Features {
                 Cmd.run(VillagerPage.UNLIMITED_CMD);
                 return;
             }
+        }
+    }
+
+    /**
+     * Mobs > Kill Field: kills the selected mobs around you, each by its own UUID so named mobs and pets can be left alone.
+     * It only sends something when a selected mob is really there. force = the Kill Now button.
+     */
+    public static void killPass(boolean force) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer p = mc.player;
+        if (p == null || mc.level == null || !Access.allowed) return;
+        Set<String> ids = KillFieldPage.ids();
+        if (ids.isEmpty()) return;
+        double r2 = KILL_RADIUS.value * KILL_RADIUS.value;
+        int left = Access.direct() ? 256 : 8;      // on a plain server commands go through a rate-limited queue
+        final long now = ticks;
+        killSent.values().removeIf(t -> now - t > 40);
+        for (Entity e : Compat.entities(mc.level)) {
+            if (e == p || e instanceof Player || !e.isAlive() || p.distanceToSqr(e) > r2) continue;
+            if (!ids.contains(net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString())) continue;
+            if (KILL_NAMED.on && e.hasCustomName()) continue;
+            if (KILL_PETS.on && Compat.isPet(e)) continue;
+            if (!force && killSent.containsKey(e.getUUID())) continue;
+            killSent.put(e.getUUID(), now);
+            Cmd.run("kill " + e.getUUID());
+            if (--left <= 0) break;
         }
     }
 
@@ -161,15 +197,17 @@ public final class Features {
 
         // Kill aura
         if (auraCd > 0) auraCd--;
-        if (AURA.active() && auraCd == 0 && cam == null && p.getAttackStrengthScale(0.5f) >= 1f) {
+        if (AURA.active() && auraCd == 0 && cam == null && p.isAlive() && !p.isSpectator() && p.getAttackStrengthScale(0.5f) >= 1f) {
             double best = AURA_RANGE.value * AURA_RANGE.value;
             LivingEntity target = null;
             for (Entity e : Compat.entities(level)) {
-                if (e == p || !(e instanceof LivingEntity le) || !le.isAlive() || e instanceof ArmorStand) continue;
+                if (e == p || !(e instanceof LivingEntity le) || !le.isAlive() || le.isDeadOrDying() || e instanceof ArmorStand) continue;
                 boolean player = e instanceof Player;
-                if (player && !AURA_PLAYERS.on) continue;
+                if (player && (!AURA_PLAYERS.on || ((Player) e).isCreative() || e.isSpectator())) continue;
                 if (!player && AURA_HOSTILE.on && !(e instanceof Enemy)) continue;
+                if (!player && AURA_SPARE.on && (e.hasCustomName() || Compat.isPet(e))) continue;
                 double d = p.distanceToSqr(e);
+                if (d < best && !AURA_WALLS.on && !p.hasLineOfSight(e)) continue;
                 if (d < best) { best = d; target = le; }
             }
             if (target != null) {
@@ -263,8 +301,9 @@ public final class Features {
         double er = Math.max(reach ? ENTITY_REACH.value : 3.0, AURA.active() ? AURA_RANGE.value : 3.0);
         attr(A_EREACH, reach || AURA.active(), er);
         attr(A_KB, ANTIKB.active(), 1.0);
+        attr(A_EKB, ANTIKB.active(), 1.0);
         attr(A_SPEED, NODELAY.active(), 1024.0);
-        attr(A_FALL, NOFALL.active(), 0.0);
+        attr(A_FALL, NOFALL.active() && !Access.server(), 0.0);      // the server part handles it in Server Mode
         attr(A_GRAV, LOWGRAV.active(), 0.08 * GRAV_MULT.value);
 
         // XP freeze: a plain int compare every tick, a command only when the level actually differs (max once/second)
@@ -274,10 +313,22 @@ public final class Features {
         }
     }
 
+    /** In Server Mode these are done by the server part directly, without any effect. */
+    private static boolean handledByServer(Setting on) { return Access.server() && (on == GOD || on == HEAL || on == HUNGER); }
+
+    /** Takes off a menu effect that nothing wants any more, also one left over from an earlier session. */
+    private static void removeEffect(LocalPlayer p, String id) {
+        if (effSent.remove(id)) { Cmd.run("effect clear @s " + id); effAmpSent.remove(id); return; }
+        if (Compat.effectTicks(p, id) >= ORPHAN && ticks - effLast.getOrDefault(id + "#o", -100L) >= 40) {
+            effLast.put(id + "#o", ticks);
+            Cmd.run("effect clear @s " + id);
+        }
+    }
+
     private static void effect(LocalPlayer p, Eff e) {
         String id = e.id();
         if (id.equals("minecraft:saturation")) { hunger(p, e); return; }
-        if (e.on().active()) {
+        if (e.on().active() && !handledByServer(e.on())) {
             int amp = e.amp();
             Integer sentAmp = effAmpSent.get(id);
             if (sentAmp != null && sentAmp != amp && effSent.contains(id)) {          // level changed -> replace
@@ -291,24 +342,22 @@ public final class Features {
             }
             int rem = Compat.effectTicks(p, id);
             if ((rem < 200 || Compat.effectAmp(p, id) < amp) && ticks - effLast.getOrDefault(id, 0L) >= 25) {
-                Cmd.run("effect give @s " + id + " 30 " + amp + " true");
+                Cmd.run("effect give @s " + id + " infinite " + amp + " true");   // once per toggle, so nothing repeats in chat
                 effLast.put(id, ticks);
                 effAmpSent.put(id, amp);
                 effSent.add(id);
             }
-        } else if (effSent.remove(id)) {
-            Cmd.run("effect clear @s " + id);
-            effAmpSent.remove(id);
-        }
+        } else removeEffect(p, id);
     }
 
-    /** Saturation is an instant effect (it never shows as "active"), so only top up when food/saturation is actually low. */
+    /** Saturation counts its duration in ticks and does nothing when infinite, so it gets the longest duration /effect allows (about 14 hours). */
     private static void hunger(LocalPlayer p, Eff e) {
-        if (!e.on().active()) return;
-        boolean low = p.getFoodData().getFoodLevel() < 20 || p.getFoodData().getSaturationLevel() < 10f;
-        if (low && ticks - effLast.getOrDefault("hunger", 0L) >= 20) {
-            Cmd.run("effect give @s minecraft:saturation 1 10 true");
+        String id = e.id();
+        if (!e.on().active() || handledByServer(e.on())) { removeEffect(p, id); return; }
+        if (Compat.effectTicks(p, id) < 200 && ticks - effLast.getOrDefault("hunger", 0L) >= 25) {
+            Cmd.run("effect give @s " + id + " 1000000 0 true");
             effLast.put("hunger", ticks);
+            effSent.add(id);
         }
     }
 

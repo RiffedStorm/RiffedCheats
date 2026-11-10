@@ -19,4 +19,8 @@ public interface Core {
     void frame();
     boolean freecamOn();
     void openMenu();
+    /** A message from the server part of the mod. */
+    default void onServer(String data) {}
+    /** Draws on the in-game HUD; g is the platform's graphics object. */
+    default void hud(Object g) {}
 }

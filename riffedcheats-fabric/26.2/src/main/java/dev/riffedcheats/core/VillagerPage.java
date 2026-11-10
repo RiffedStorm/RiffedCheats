@@ -42,6 +42,8 @@ public final class VillagerPage implements Page {
     private final TextField search = new TextField(), name = new TextField();
     private String lastQuery;
     private List<ItemsPage.Entry> view = List.of();
+    private int lastFav = -1;
+    private final Stars itemStars = new Stars(Favorites.ITEM), enchStars = new Stars(Favorites.ENCH);
     private List<String> jobs, biomes;
     private int listScroll, enchScroll, trScroll, job, biome, level = 5;
     private boolean trader, noAi, invul, silent, fixed = true;
@@ -77,17 +79,11 @@ public final class VillagerPage implements Page {
     }
 
     private void refilter() {
-        if (search.text.equals(lastQuery)) return;
+        if (search.text.equals(lastQuery) && Favorites.version == lastFav) return;
+        if (!search.text.equals(lastQuery)) listScroll = 0;
         lastQuery = search.text;
-        String[] q = search.text.toLowerCase(Locale.ROOT).trim().split("\\s+");
-        List<ItemsPage.Entry> out = new ArrayList<>();
-        for (ItemsPage.Entry e : ItemsPage.items()) {
-            boolean ok = true;
-            for (String t : q) if (!t.isEmpty() && !e.lower().contains(t)) { ok = false; break; }
-            if (ok) out.add(e);
-        }
-        view = out;
-        listScroll = 0;
+        lastFav = Favorites.version;
+        view = ItemsPage.search(search.text);
     }
 
     private static String pretty(String id) {
@@ -246,7 +242,8 @@ public final class VillagerPage implements Page {
             int ry = y + LIST + i * ROWH;
             Ui.rr(g, x, ry, LW, ROWH - 1, Ui.in(mx, my, x, ry, LW, ROWH - 1) ? Ui.HOVER : Ui.BTN);
             g.item(e.stack(), x + 1, ry - 1);
-            Ui.label(g, e.name(), x + 20, ry + 4, LW - 24, Ui.TEXT);
+            Ui.label(g, e.label(), x + 20, ry + 4, LW - 36, Ui.TEXT);
+            itemStars.draw(g, e.id(), x + LW - Stars.W, ry, ROWH - 1, mx, my);
         }
         g.text(Ui.fit(g, "Click an item: puts it in the selected box", LW), x, y + h - 9, Ui.DIM);
     }
@@ -260,7 +257,7 @@ public final class VillagerPage implements Page {
         if (st.isEmpty()) return ids;
         java.util.Map<String, Integer> has = Compat.enchantsOf(st);
         for (String id : Compat.enchantIds()) if (showAll || has.containsKey(id) || Compat.enchantFits(id, st)) ids.add(id);
-        return ids;
+        return Favorites.arrange(Favorites.ENCH, ids, s -> s);
     }
 
     private void drawEnchants(Gfx g, int mx, int my) {
@@ -281,8 +278,9 @@ public final class VillagerPage implements Page {
         for (int i = 0; i < rows && enchScroll + i < ids.size(); i++) {
             String id = ids.get(enchScroll + i);
             int ry = y + LIST + i * ROWH, lv = has.getOrDefault(id, 0);
-            Ui.rr(g, x, ry, LW, ROWH - 1, lv > 0 ? Ui.SEL : Ui.BTN);
-            Ui.label(g, pretty(id), x + 4, ry + 4, LW - 72, Ui.TEXT);
+            Ui.rr(g, x, ry, LW, ROWH - 1, Ui.enchRow(id, lv));
+            enchStars.draw(g, id, x, ry, ROWH - 1, mx, my);
+            Ui.label(g, pretty(id), x + 12, ry + 4, LW - 80, Ui.enchColor(id));
             Ui.button(g, "-", x + LW - 66, ry, 12, ROWH - 1, Ui.in(mx, my, x + LW - 66, ry, 12, ROWH - 1), false);
             Ui.center(g, String.valueOf(lv), x + LW - 54, ry + 4, 16, Ui.TEXT);
             Ui.button(g, "+", x + LW - 38, ry, 12, ROWH - 1, Ui.in(mx, my, x + LW - 38, ry, 12, ROWH - 1), false);
@@ -370,14 +368,17 @@ public final class VillagerPage implements Page {
                 String id = ids.get(enchScroll + i);
                 int ry = y + LIST + i * ROWH, lv = has.getOrDefault(id, 0);
                 int cap = Menu.OVERLEVEL.on ? 255 : Compat.enchantMax(id), d = btn == 1 && Menu.OVERLEVEL.on ? 10 : 1;
+                if (enchStars.press(id, x, ry, ROWH - 1, mx, my)) return true;
                 if (Ui.in(mx, my, x + LW - 66, ry, 12, ROWH - 1)) { enchant(id, Math.max(0, lv - d)); return true; }
                 if (Ui.in(mx, my, x + LW - 38, ry, 12, ROWH - 1)) { enchant(id, Math.min(Math.max(cap, lv), lv + d)); return true; }
                 if (Ui.in(mx, my, x + LW - 24, ry, 24, ROWH - 1)) { enchant(id, Compat.enchantMax(id)); return true; }
             }
         } else {
             if (Ui.in(mx, my, x, y + SEARCH, LW, 16)) { search.focused = true; name.focused = false; return true; }
-            for (int i = 0; i < rows && listScroll + i < view.size(); i++)
+            for (int i = 0; i < rows && listScroll + i < view.size(); i++) {
+                if (itemStars.press(view.get(listScroll + i).id(), x + LW - Stars.W, y + LIST + i * ROWH, ROWH - 1, mx, my)) return true;
                 if (Ui.in(mx, my, x, y + LIST + i * ROWH, LW, ROWH - 1)) { pick(view.get(listScroll + i)); return true; }
+            }
         }
 
         if (Ui.in(mx, my, rx, y, hw, 14)) { trader = false; return true; }
@@ -470,7 +471,7 @@ public final class VillagerPage implements Page {
 
     private static boolean split(List<String> cmds, String path, net.minecraft.nbt.Tag value) {
         String c = "data modify entity " + SELF + " " + path + " set value " + value;
-        boolean local = Access.mode == Access.Mode.LOCAL;
+        boolean local = Access.direct();      // no 255 character limit
         if (local || c.length() <= MAX_CMD || !(value instanceof net.minecraft.nbt.CompoundTag ct) || Compat.keys(ct).isEmpty()) {
             if (!local && c.length() > MAX_CMD) return false;
             cmds.add(c);
@@ -532,11 +533,13 @@ public final class VillagerPage implements Page {
     public boolean drag(int mx, int my) {
         if (bar.dragging()) scrollTo(bar.at(my));
         else if (trBar.dragging()) trScroll = trBar.at(my);
+        else if (itemStars.active()) itemStars.drag(my, view.stream().map(ItemsPage.Entry::id).toList(), y + LIST, ROWH, listScroll);
+        else if (enchStars.active()) enchStars.drag(my, enchList(target()), y + LIST, ROWH, enchScroll);
         else return false;
         return true;
     }
 
-    @Override public void release() { bar.release(); trBar.release(); }
+    @Override public void release() { itemStars.release(); enchStars.release(); bar.release(); trBar.release(); }
 
     @Override
     public boolean scroll(int mx, int my, double dy) {
