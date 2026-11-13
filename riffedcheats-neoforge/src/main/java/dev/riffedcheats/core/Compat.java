@@ -214,10 +214,25 @@ public final class Compat {
         p.connection.send(new ServerboundPlayerCommandPacket(p, ServerboundPlayerCommandPacket.Action.START_FALL_FLYING));
     }
 
-    /** Wearing something that can glide (elytra, modded ones included) that is not broken. */
+    private static net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> caelusFly;
+    private static boolean caelusLooked;
+
+    /**
+     * Wearing something that can glide (elytra, modded ones included) that is not broken. Elytra Slot and similar mods
+     * (Curios) let you fly through Caelus's "caelus:fall_flying" attribute instead of the chest slot, so that counts too.
+     */
     public static boolean hasGlider(LocalPlayer p) {
+        if (p.isFallFlying()) return true;
         net.minecraft.world.item.ItemStack c = p.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.CHEST);
-        return !c.isEmpty() && c.canElytraFly(p);
+        if (!c.isEmpty() && c.canElytraFly(p)) return true;
+        if (!caelusLooked) {
+            caelusLooked = true;
+            caelusFly = net.minecraft.core.registries.BuiltInRegistries.ATTRIBUTE
+                    .getHolder(net.minecraft.resources.ResourceLocation.parse("caelus:fall_flying")).orElse(null);
+        }
+        if (caelusFly == null) return false;
+        var a = p.getAttribute(caelusFly);
+        return a != null && a.getValue() >= 1;
     }
 
     /** Ids of every block tag the block is in. */

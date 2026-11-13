@@ -271,7 +271,14 @@ public final class Compat {
     }
 
     /** Wearing something that can glide (elytra, modded ones included) that is not broken. */
+    private static java.lang.reflect.Method canGlide;
+
     public static boolean hasGlider(LocalPlayer p) {
+        if (p.isFallFlying()) return true;
+        try {   // protected; elytra slot mods hook it
+            if (canGlide == null) { canGlide = net.minecraft.world.entity.LivingEntity.class.getDeclaredMethod("canGlide"); canGlide.setAccessible(true); }
+            if (Boolean.TRUE.equals(canGlide.invoke(p))) return true;
+        } catch (Throwable ignored) {}
         for (net.minecraft.world.entity.EquipmentSlot sl : net.minecraft.world.entity.EquipmentSlot.values())
             if (net.minecraft.world.entity.LivingEntity.canGlideUsing(p.getItemBySlot(sl), sl)) return true;
         return false;
