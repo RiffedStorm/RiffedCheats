@@ -190,6 +190,16 @@ public final class Menu {
     public static final Setting ORE_MAX = num("Max Outlines", 16, 1000, 16, 256, "ore.max");
     public static final Setting ORE_THICK = num("Line Thickness (pixels)", 1, 4, 1, 2, "ore.thick");
     public static final Setting ORE_TRACERS = opt("Tracer Lines", false, "ore.tracers");
+    public static final Setting ORE_TRACER_FROM = pick("Tracers Start At", 0, "ore.tracerfrom", "Crosshair", "Bottom");
+    public static final Setting ORE_OUTLINE = opt("Outlines", true, "ore.outline");
+    public static final Setting ORE_OPACITY = num("Outline Opacity %", 10, 100, 5, 100, "ore.opacity");
+    public static final Setting ORE_FILL = opt("Filled Boxes", false, "ore.fill");
+    public static final Setting ORE_FILL_OPACITY = num("Fill Opacity %", 5, 90, 5, 25, "ore.fillopacity");
+    public static final Setting ORE_FADE = opt("Fade With Distance", false, "ore.fade");
+    public static final Setting ORE_NAMES = opt("Block Names", false, "ore.names"), ORE_DIST = opt("Distance", false, "ore.dist");
+    public static final Setting ORE_RAINBOW = opt("Rainbow Colors", false, "ore.rainbow");
+    public static final Setting ORE_OTHER_OWN = opt("Modded / Other: Use Each Block's Own Color", true, "ore.otherown");
+    public static final Setting ORE_CUSTOM_OWN = opt("Custom Blocks: Use Each Block's Own Color", true, "ore.customown");
     /** Same order as Ores.KEYS. */
     public static final Setting[] ORE_KINDS = {
         opt("Diamond", true, "ore.diamond"), opt("Emerald", true, "ore.emerald"), opt("Ancient Debris", true, "ore.debris"),
@@ -264,9 +274,12 @@ public final class Menu {
             page("Custom Mobs", new MobListPage("aim_custom", AIM_CUSTOM)));
 
         cat("Ore ESP",
-            tab("Main", ORE_ON, ORE_RANGE, ORE_MAX, ORE_THICK, ORE_TRACERS,
+            tab("Main", ORE_ON, ORE_RANGE, ORE_MAX,
                 lab("3D outlines around ores, seen through walls. They are drawn over the screen, not in the world, so they work with Sodium, Iris and any shader pack."),
                 lab("Lower Max Outlines if your FPS drops.")),
+            tab("Look", ORE_OUTLINE, ORE_THICK, ORE_OPACITY, ORE_FILL, ORE_FILL_OPACITY, ORE_FADE, ORE_NAMES, ORE_DIST, ORE_TRACERS, ORE_TRACER_FROM, ORE_RAINBOW,
+                lab("Names and distance are shown for the 40 nearest blocks.")),
+            page("Colors", new OreColorsPage()),
             tab("Ores", ORE_KINDS[0], ORE_KINDS[1], ORE_KINDS[2], ORE_KINDS[3], ORE_KINDS[4], ORE_KINDS[5], ORE_KINDS[6], ORE_KINDS[7],
                 ORE_KINDS[8], ORE_KINDS[9], ORE_OTHER,
                 lab("Modded ores are found by the c:ores tag and by \"_ore\" in their name, and drawn in their map color.")),
@@ -386,6 +399,8 @@ public final class Menu {
     /** A saved text value (for example the Kill Field's mob list). */
     public static String str(String k) { return STRINGS.getOrDefault(k, ""); }
     public static void setStr(String k, String v) { STRINGS.put(k, v); changed(); }
+    /** Like setStr, without saving yet (while a slider is dragged). */
+    static void putStr(String k, String v) { STRINGS.put(k, v); }
 
     /** Settings about the menu itself, which a named config must not change. */
     private static boolean notInConfig(Setting st) { return st == MULTI_CONFIG || st == CONN || st == AUTOSAVE || st == UPDATE_CHECK; }
