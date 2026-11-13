@@ -17,6 +17,8 @@ public final class Menu {
         public int amp() { return Math.max(0, (lvl != null ? lvl.intValue() : fixed) - 1); }
     }
 
+    /** Saved text values; first, because the menu building below may already read them. */
+    private static final Map<String, String> STRINGS = new HashMap<>();
     public static final List<Setting> ALL = new ArrayList<>();
     public static final List<Category> CATEGORIES = new ArrayList<>();
     public static final List<Eff> EFFECTS = new ArrayList<>();
@@ -393,7 +395,6 @@ public final class Menu {
 
     private static Path file() { return Compat.configDir().resolve("riffedcheats.properties"); }
 
-    private static final Map<String, String> STRINGS = new HashMap<>();
     private static final String STR = "str.";
 
     /** A saved text value (for example the Kill Field's mob list). */

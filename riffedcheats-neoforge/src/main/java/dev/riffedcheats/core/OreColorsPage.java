@@ -12,7 +12,9 @@ public final class OreColorsPage implements Page {
     private final TextField hex = new TextField();
     private int sel, dragging = -1, x, y, w, h;
 
-    public OreColorsPage() { hex.max = 7; load(); }
+    /** Built while Menu is still starting, before saved text values exist, so nothing is read here. */
+    public OreColorsPage() { hex.max = 7; }
+    private boolean loaded;
 
     @Override public boolean wantsText() { return true; }
 
@@ -36,6 +38,7 @@ public final class OreColorsPage implements Page {
     public void render(Gfx g, int mx, int my, int x, int y, int w, int h) {
         this.x = x; this.y = y; this.w = w; this.h = h;
         hex.focused = true;
+        if (!loaded) { loaded = true; load(); }
         for (int i = 0; i <= Ores.CUSTOM; i++) {
             int ry = y + i * ROWH;
             Ui.rr(g, x, ry, LW, ROWH - 1, i == sel ? Ui.SEL : Ui.in(mx, my, x, ry, LW, ROWH - 1) ? Ui.HOVER : Ui.BTN);
