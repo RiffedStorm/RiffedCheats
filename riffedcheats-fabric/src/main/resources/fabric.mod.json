@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "riffedcheats",
+  "version": "${version}",
+  "name": "RiffedCheats",
+  "description": "Client-side cheat / trainer menu inspired by CheatUtils, styled like YimMenuV2. Works in your own worlds and on servers with operator rights. Install it on a server too for silent commands and extra features; players without it can still join.",
+  "authors": ["RiffedCheats"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": { "main": ["dev.riffedcheats.RiffedCommon"], "client": ["dev.riffedcheats.RiffedCheats"] },
+  "mixins": ["riffedcheats.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.2",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

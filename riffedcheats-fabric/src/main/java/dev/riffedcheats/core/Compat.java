@@ -1,0 +1,551 @@
+package dev.riffedcheats.core;
+
+import java.lang.reflect.Constructor;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Consumer;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.player.RemotePlayer;
+import net.minecraft.client.server.IntegratedServer;
+import net.minecraft.commands.CommandSource;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.nbt.TagParser;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.RegistryOps;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
+import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
+import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
+import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.item.enchantment.ItemEnchantments;
+import net.minecraft.world.level.storage.LevelResource;
+
+/**
+ * Everything specific to Minecraft 26.2 / Fabric lives here. If the build complains after a Minecraft update,
+ * the fix is almost always a one-line change in this file, in Gfx.java, in MenuScreen.java or in BlockMixin.java.
+ */
+public final class Compat {
+    private static Minecraft mc() { return Minecraft.getInstance(); }
+
+    public static Path configDir() { return FabricLoader.getInstance().getConfigDir(); }
+
+    // ---------------- permissions / commands ----------------
+    public static boolean hostingLocalServer() { return mc().getSingleplayerServer() != null; }
+
+    /** 26.x replaced the numeric op level with a permission set, so this tries the new API first, then the old one. */
+    public static boolean hasOp(LocalPlayer p) {
+        Object[] sources = { p, p.connection == null ? null : p.connection.getSuggestionsProvider() };
+        for (Object src : sources) {
+            if (src == null) continue;
+            try {
+                Object perms = Refl.call(src, "permissions");
+                Object gm = Class.forName("net.minecraft.server.permissions.Permissions").getField("COMMANDS_GAMEMASTER").get(null);
+                return (boolean) Refl.call(perms, "hasPermission", gm);
+            } catch (Throwable ignored) {}
+        }
+        try { return (boolean) Refl.call(p, "hasPermissions", 2); } catch (Throwable ignored) {}
+        return false;
+    }
+
+    private static CommandSourceStack elevated(ServerPlayer sp) {
+        CommandSourceStack s = sp.createCommandSourceStack();
+        try {
+            Object owner = Class.forName("net.minecraft.server.permissions.LevelBasedPermissionSet").getField("OWNER").get(null);
+            return (CommandSourceStack) Refl.call(s, "withPermission", owner);
+        } catch (Throwable t) {
+            try { return (CommandSourceStack) Refl.call(s, "withPermission", 4); } catch (Throwable t2) { return s; }
+        }
+    }
+
+    public static void runLocal(String cmd) {
+        LocalPlayer p = mc().player;
+        IntegratedServer srv = mc().getSingleplayerServer();
+        if (p == null || srv == null) return;
+        UUID id = p.getUUID();
+        srv.execute(() -> {
+            ServerPlayer sp = srv.getPlayerList().getPlayer(id);
+            if (sp != null) srv.getCommands().performPrefixedCommand(elevated(sp), cmd);
+        });
+    }
+
+    /** Runs a command in your own world and hands every line of its output to {@code out} (server thread), instead of the chat. */
+    public static void runCapture(String cmd, Consumer<Component> out) {
+        LocalPlayer p = mc().player;
+        IntegratedServer srv = mc().getSingleplayerServer();
+        if (p == null || srv == null) return;
+        UUID id = p.getUUID();
+        CommandSource sink = new CommandSource() {
+            @Override public void sendSystemMessage(Component c) { out.accept(c); }
+            @Override public boolean acceptsSuccess() { return true; }
+            @Override public boolean acceptsFailure() { return true; }
+            @Override public boolean shouldInformAdmins() { return false; }
+        };
+        srv.execute(() -> {
+            ServerPlayer sp = srv.getPlayerList().getPlayer(id);
+            if (sp != null) srv.getCommands().performPrefixedCommand(elevated(sp).withSource(sink), cmd);
+        });
+    }
+
+    // ---------------- menu screen / updates ----------------
+    public static void openMenu() { mc().gui.setScreen(new MenuScreen()); }
+    public static void closeMenu() { if (mc().gui.screen() instanceof MenuScreen) mc().gui.setScreen(null); }
+    public static Path modsDir() { return FabricLoader.getInstance().getGameDir().resolve("mods"); }
+    /** Release jars are named riffedcheats-fabric-26.2-<version>.jar */
+    public static String assetPrefix() { return "riffedcheats-fabric-26.2-"; }
+    public static String buildName() { return "Fabric 26.2"; }
+
+    public static boolean modLoaded(String id) { return FabricLoader.getInstance().isModLoaded(id); }
+
+    public static String selfName() { return mc().player == null ? "" : mc().player.getName().getString(); }
+
+    // ---------------- other players' inventories ----------------
+    /** 1.21.5+ keeps armor and offhand in a separate "equipment" compound. */
+    public static String[] inventoryPaths() { return new String[] { "Inventory", "equipment" }; }
+    public static String[] inventoryQueries(String name) {
+        return new String[] { "data get entity " + name + " Inventory", "data get entity " + name + " equipment" };
+    }
+
+    public static void parseInventory(String snbt, Map<Integer, ItemStack> into) throws Exception {
+        RegistryOps<Tag> ops = mc().level.registryAccess().createSerializationContext(NbtOps.INSTANCE);
+        if (snbt.startsWith("[")) {
+            ListTag list = TagParser.parseCompoundFully("{L:" + snbt + "}").getList("L").orElseThrow();
+            into.keySet().removeIf(k -> k < 100);
+            for (int i = 0; i < list.size(); i++) {
+                CompoundTag t = list.getCompoundOrEmpty(i);
+                int slot = t.getByteOr("Slot", (byte) -1);
+                if (slot >= 0 && slot < 36) ItemStack.CODEC.parse(ops, t).result().ifPresent(st -> into.put(slot, st));
+            }
+        } else if (snbt.startsWith("{")) {
+            CompoundTag eq = TagParser.parseCompoundFully(snbt);
+            into.keySet().removeIf(k -> k >= 100);
+            String[] keys = { "feet", "legs", "chest", "head" };
+            for (int i = 0; i < 4; i++) {
+                int slot = 100 + i;
+                eq.getCompound(keys[i]).flatMap(t -> ItemStack.CODEC.parse(ops, t).result()).ifPresent(st -> into.put(slot, st));
+            }
+            eq.getCompound("offhand").flatMap(t -> ItemStack.CODEC.parse(ops, t).result()).ifPresent(st -> into.put(106, st));
+        }
+    }
+
+    /** Enchantments on a stack (stored ones for enchanted books): id -> level. */
+    public static Map<String, Integer> enchantsOf(ItemStack st) {
+        ItemEnchantments e = st.get(st.is(Items.ENCHANTED_BOOK) ? DataComponents.STORED_ENCHANTMENTS : DataComponents.ENCHANTMENTS);
+        Map<String, Integer> out = new LinkedHashMap<>();
+        if (e != null) for (var en : e.entrySet()) en.getKey().unwrapKey().ifPresent(k -> out.put(k.identifier().toString(), en.getIntValue()));
+        return out;
+    }
+
+    public static void runRemote(String cmd) {
+        LocalPlayer p = mc().player;
+        if (p != null) p.connection.sendCommand(cmd);
+    }
+
+    public static void suggest(String text, Consumer<List<String>> cb) {
+        LocalPlayer p = mc().player;
+        if (p == null) { cb.accept(List.of()); return; }
+        IntegratedServer srv = mc().getSingleplayerServer();
+        if (srv != null) {
+            UUID id = p.getUUID();
+            srv.execute(() -> {
+                ServerPlayer sp = srv.getPlayerList().getPlayer(id);
+                if (sp == null) { cb.accept(List.of()); return; }
+                Suggest.with(srv.getCommands().getDispatcher(), elevated(sp), text, cb);
+            });
+        } else {
+            ClientPacketListener c = p.connection;
+            Suggest.with(c.getCommands(), c.getSuggestionsProvider(), text, cb);
+        }
+    }
+
+    // ---------------- command syntax that changed between versions ----------------
+    /** 1.21.5+ flattened the enchantments component: no more {levels:{...}} wrapper. */
+    public static String ench(String csv) { return "enchantments={" + csv + "}"; }
+    public static String enchBook(String csv) { return "stored_enchantments={" + csv + "}"; }
+
+    /** Attribute ids lost their generic./player. prefix in 1.21.2. */
+    public static String attr(String key) { return "minecraft:" + key; }
+
+    /** Game rules became snake_case ids in the 1.21.11 / 26.x era. */
+    public static String gamerule(String key) {
+        return switch (key) {
+            case "daylight" -> "advance_time";
+            case "weather" -> "advance_weather";
+            case "mobspawn" -> "spawn_mobs";
+            case "phantoms" -> "spawn_phantoms";
+            case "patrols" -> "spawn_patrols";
+            case "traders" -> "spawn_wandering_traders";
+            case "regen" -> "natural_health_regeneration";
+            case "death_messages" -> "show_death_messages";
+            case "feedback" -> "send_command_feedback";
+            default -> key;
+        };
+    }
+
+    // ---------------- player / world ----------------
+    private static void abil(Object player, String field, boolean v) {
+        try {
+            Object ab = Refl.call(player, "getAbilities");
+            try { Refl.setField(ab, field, v); }
+            catch (Exception e) { Refl.call(ab, "set" + Character.toUpperCase(field.charAt(0)) + field.substring(1), v); }
+        } catch (Throwable ignored) {}
+    }
+    private static boolean abilGet(Object player, String field) {
+        try { return (boolean) Refl.getField(Refl.call(player, "getAbilities"), field); } catch (Throwable t) { return false; }
+    }
+
+    public static void setMayFly(LocalPlayer p, boolean v) { abil(p, "mayfly", v); }
+    public static void setFlying(LocalPlayer p, boolean v) { abil(p, "flying", v); }
+    public static boolean isFlying(LocalPlayer p) { return abilGet(p, "flying"); }
+    public static void setFlySpeed(LocalPlayer p, float v) {
+        try { Refl.call(Refl.call(p, "getAbilities"), "setFlyingSpeed", v); } catch (Throwable ignored) {}
+    }
+
+    public static void setServerMayFly(boolean want) {
+        LocalPlayer p = mc().player;
+        IntegratedServer srv = mc().getSingleplayerServer();
+        if (p == null || srv == null) return;
+        UUID id = p.getUUID();
+        srv.execute(() -> {
+            ServerPlayer sp = srv.getPlayerList().getPlayer(id);
+            if (sp == null) return;
+            boolean w = want || sp.isCreative() || sp.isSpectator();
+            if (abilGet(sp, "mayfly") != w) {
+                abil(sp, "mayfly", w);
+                if (!w) abil(sp, "flying", false);
+                sp.onUpdateAbilities();
+            }
+        });
+    }
+
+    public static Iterable<Entity> entities(ClientLevel level) { return level.entitiesForRendering(); }
+    public static void attack(Entity e) { if (mc().gameMode != null && mc().player != null) mc().gameMode.attack(mc().player, e); }
+
+    /** The Pos packet gained extra flags over time, so the constructor is picked by shape instead of hard-coded. */
+    public static void sendPos(double x, double y, double z, boolean onGround) {
+        LocalPlayer p = mc().player;
+        if (p == null) return;
+        try {
+            for (Constructor<?> k : ServerboundMovePlayerPacket.Pos.class.getConstructors()) {
+                Class<?>[] t = k.getParameterTypes();
+                if (t.length >= 4 && t[0] == double.class && t[1] == double.class && t[2] == double.class && t[3] == boolean.class) {
+                    Object[] a = new Object[t.length];
+                    a[0] = x; a[1] = y; a[2] = z; a[3] = onGround;
+                    for (int i = 4; i < t.length; i++) a[i] = t[i] == boolean.class ? (Object) Boolean.FALSE : null;
+                    p.connection.send((Packet<?>) k.newInstance(a));
+                    return;
+                }
+            }
+        } catch (Throwable ignored) {}
+    }
+
+    public static void sendStartGlide(LocalPlayer p) {
+        p.connection.send(new ServerboundPlayerCommandPacket(p, ServerboundPlayerCommandPacket.Action.START_FALL_FLYING));
+    }
+
+    /** Wearing something that can glide (elytra, modded ones included) that is not broken. */
+    public static boolean hasGlider(LocalPlayer p) {
+        for (net.minecraft.world.entity.EquipmentSlot sl : net.minecraft.world.entity.EquipmentSlot.values())
+            if (net.minecraft.world.entity.LivingEntity.canGlideUsing(p.getItemBySlot(sl), sl)) return true;
+        return false;
+    }
+
+    /** Ids of every block tag the block is in. */
+    public static java.util.List<String> blockTags(net.minecraft.world.level.block.state.BlockState s) {
+        return s.typeHolder().tags().map(t -> t.location().toString()).toList();
+    }
+
+    public static void sendSprint(LocalPlayer p, boolean start) {
+        p.connection.send(new ServerboundPlayerCommandPacket(p,
+                start ? ServerboundPlayerCommandPacket.Action.START_SPRINTING : ServerboundPlayerCommandPacket.Action.STOP_SPRINTING));
+    }
+
+    // ---------------- effects ----------------
+    private static String effId(MobEffectInstance i) {
+        String s = i.getEffect().unwrapKey().map(Object::toString).orElse("");
+        int a = s.lastIndexOf("/ ");
+        return a < 0 || !s.endsWith("]") ? s : s.substring(a + 2, s.length() - 1);
+    }
+    public static int effectTicks(LocalPlayer p, String id) {
+        for (MobEffectInstance i : p.getActiveEffects()) if (effId(i).equals(id)) return i.isInfiniteDuration() ? 1_000_000 : i.getDuration();
+        return -1;
+    }
+    public static int effectAmp(LocalPlayer p, String id) {
+        for (MobEffectInstance i : p.getActiveEffects()) if (effId(i).equals(id)) return i.getAmplifier();
+        return -1;
+    }
+    public static boolean hasNightVision(LocalPlayer p) { return p.hasEffect(MobEffects.NIGHT_VISION); }
+    public static void addNightVision(LocalPlayer p) {
+        p.addEffect(new MobEffectInstance(MobEffects.NIGHT_VISION, MobEffectInstance.INFINITE_DURATION, 0, false, false, false));
+    }
+    public static void removeNightVision(LocalPlayer p) { p.removeEffect(MobEffects.NIGHT_VISION); }
+
+    // ---------------- camera / rendering ----------------
+    public static Entity newCamera(ClientLevel level, LocalPlayer p) {
+        try {
+            Object profile = Refl.callAny(p, "getGameProfile", "gameProfile");
+            for (Constructor<?> k : RemotePlayer.class.getConstructors())
+                if (k.getParameterCount() == 2 && k.getParameterTypes()[0].isInstance(level) && k.getParameterTypes()[1].isInstance(profile))
+                    return (Entity) k.newInstance(level, profile);
+        } catch (Throwable ignored) {}
+        return p; // freecam then simply does nothing instead of crashing
+    }
+    public static void setCamera(Entity e) { mc().setCameraEntity(e != null ? e : mc().player); }
+    public static void moveCamera(Entity c, double x, double y, double z, float yaw, float pitch, boolean interpolateRot) {
+        c.xo = c.getX(); c.yo = c.getY(); c.zo = c.getZ();
+        if (interpolateRot) {
+            c.xRotO = c.getXRot(); c.yRotO = c.getYRot();
+            if (c instanceof LivingEntity l) l.yHeadRotO = l.yHeadRot;
+        } else {
+            c.xRotO = pitch; c.yRotO = yaw;
+            if (c instanceof LivingEntity l) l.yHeadRotO = yaw;
+        }
+        c.setPos(x, y, z);
+        c.setYRot(yaw); c.setXRot(pitch);
+        // LivingEntity cameras look along the HEAD rotation, not the body rotation
+        if (c instanceof LivingEntity l) { l.yHeadRot = yaw; l.yBodyRot = yaw; }
+    }
+    public static void setCameraAngles(Entity c, float yaw, float pitch) {
+        c.xRotO = pitch; c.yRotO = yaw; c.setYRot(yaw); c.setXRot(pitch);
+        if (c instanceof LivingEntity l) { l.yHeadRotO = yaw; l.yHeadRot = yaw; l.yBodyRot = yaw; }
+    }
+    public static void lockRotation(LocalPlayer p, float yaw, float pitch) {
+        p.setYRot(yaw); p.setXRot(pitch); p.yRotO = yaw; p.xRotO = pitch;
+    }
+
+    /** Replaces the player's input with a blank one so WASD does not move your body while in freecam. */
+    public static Object freezeInput(LocalPlayer p) {
+        try {
+            Object old = Refl.getField(p, "input");
+            Constructor<?> k = old.getClass().getSuperclass() == Object.class ? old.getClass().getDeclaredConstructor()
+                    : Class.forName("net.minecraft.client.player.ClientInput").getDeclaredConstructor();
+            k.setAccessible(true);
+            Refl.setField(p, "input", k.newInstance());
+            return old;
+        } catch (Throwable t) { return null; }
+    }
+    public static void restoreInput(LocalPlayer p, Object saved) {
+        if (saved == null) return;
+        try { Refl.setField(p, "input", saved); } catch (Throwable ignored) {}
+    }
+
+    public static void setRenderHand(boolean v) { try { Refl.call(mc().gameRenderer, "setRenderHand", v); } catch (Throwable ignored) {} }
+    public static void setSmartCull(boolean v) { try { Refl.setField(mc(), "smartCull", v); } catch (Throwable ignored) {} }
+    public static void rebuildChunks() {
+        try { if (mc().levelRenderer != null) Refl.call(mc().levelRenderer, "allChanged"); } catch (Throwable ignored) {}
+    }
+
+    /** Long.MIN_VALUE = unknown (26.x reworked world time into clocks), the menu then falls back to /time set. */
+    public static long dayTime() {
+        if (mc().level == null) return Long.MIN_VALUE;
+        try { return (long) Refl.callAny(mc().level, "getDayTime", "getOverworldClockTime", "getDayTimeTicks"); }
+        catch (Throwable t) { return Long.MIN_VALUE; }
+    }
+
+    public static int[] spawnPos() {
+        try {
+            Object b = Refl.callAny(mc().level, "getSharedSpawnPos");
+            return new int[] { (int) Refl.call(b, "getX"), (int) Refl.call(b, "getY"), (int) Refl.call(b, "getZ") };
+        } catch (Throwable t) { return new int[] { 0, 100, 0 }; }
+    }
+
+    // ---------------- teleports ----------------
+    /** Key for saved teleports: the save folder name in singleplayer / LAN host, the address on a server. */
+    public static String worldId() {
+        IntegratedServer s = mc().getSingleplayerServer();
+        if (s != null) return "sp:" + s.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().getFileName();
+        ServerData d = mc().getCurrentServer();
+        return d != null ? "mp:" + d.ip.toLowerCase(java.util.Locale.ROOT) : "unknown";
+    }
+
+    public static String dimension() { return mc().level == null ? "minecraft:overworld" : mc().level.dimension().identifier().toString(); }
+
+    /** The death position vanilla keeps for the recovery compass (sent to the client on join / respawn). */
+    public static Teleports.Loc lastDeath() {
+        LocalPlayer p = mc().player;
+        if (p == null) return null;
+        Optional<GlobalPos> o = p.getLastDeathLocation();
+        if (o.isEmpty()) return null;
+        BlockPos b = o.get().pos();
+        return new Teleports.Loc(worldId(), o.get().dimension().identifier().toString(), "Last Death",
+                b.getX() + 0.5, b.getY(), b.getZ() + 0.5, p.getYRot(), p.getXRot());
+    }
+
+    /** 1.21.5+: CustomName is an SNBT text component, a plain string is literal text. */
+    public static String customName(String n) { return "CustomName:\"" + n + "\""; }
+
+    public static List<String> onlinePlayers() {
+        List<String> l = new ArrayList<>();
+        ClientPacketListener c = mc().getConnection();
+        if (c != null) for (PlayerInfo i : c.getOnlinePlayers()) {
+            try { l.add((String) Refl.callAny(Refl.callAny(i, "getProfile", "profile"), "name", "getName")); } catch (Throwable ignored) {}
+        }
+        Collections.sort(l, String.CASE_INSENSITIVE_ORDER);
+        return l;
+    }
+
+    public static String clipboard() { return mc().keyboardHandler.getClipboard(); }
+
+    // ---------------- enchantments ----------------
+    private static Registry<Enchantment> reg() { return mc().level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT); }
+
+    public static List<String> enchantIds() {
+        List<String> l = new ArrayList<>();
+        for (var r : reg().keySet()) l.add(r.toString());
+        Collections.sort(l);
+        return l;
+    }
+    public static int enchantMax(String id) {
+        Enchantment e = reg().getValue(Identifier.parse(id));
+        return e == null ? 1 : e.getMaxLevel();
+    }
+    public static boolean enchantFits(String id, ItemStack st) {
+        if (st.is(Items.ENCHANTED_BOOK) || st.is(Items.BOOK)) return true;
+        Enchantment e = reg().getValue(Identifier.parse(id));
+        if (e == null) return false;
+        try { return (boolean) Refl.call(e, "isSupportedItem", st); } catch (Throwable ignored) {}
+        try { return (boolean) Refl.call(e, "canEnchant", st); } catch (Throwable ignored) {}
+        return true;
+    }
+
+    /** Modifier keys held right now (multi-select in the inventory editor). */
+    public static boolean shift() { return Minecraft.getInstance().hasShiftDown(); }
+    public static boolean ctrl() { return Minecraft.getInstance().hasControlDown(); }
+
+    /** The item in your main hand (empty if none). */
+    public static ItemStack heldItem() { return mc().player == null ? ItemStack.EMPTY : mc().player.getMainHandItem(); }
+    /** The stack's data components as NBT (enchantments, name...), or null when it has none. */
+    public static CompoundTag componentsTag(ItemStack st) {
+        if (st.isEmpty()) return null;
+        Tag t = ItemStack.CODEC.encodeStart(mc().level.registryAccess().createSerializationContext(NbtOps.INSTANCE), st).getOrThrow();
+        CompoundTag c = t instanceof CompoundTag ct ? ct.getCompoundOrEmpty("components") : new CompoundTag();
+        return c.isEmpty() ? null : c;
+    }
+    public static java.util.Set<String> keys(CompoundTag t) { return t.keySet(); }
+    /** Sets one enchantment level on the stack itself (stored enchantments on books); 0 removes it. */
+    public static void setEnchant(ItemStack st, String id, int lv) {
+        reg().get(Identifier.parse(id)).ifPresent(h ->
+                net.minecraft.world.item.enchantment.EnchantmentHelper.updateEnchantments(st, m -> m.set(h, lv)));
+    }
+
+    /** A client-only villager (or wandering trader) for the summoner's preview; null when there is no world. */
+    public static LivingEntity villagerPreview(boolean trader, String profession, String type, int level) {
+        if (mc().level == null) return null;
+        if (trader) {
+            var w = new net.minecraft.world.entity.npc.wanderingtrader.WanderingTrader(net.minecraft.world.entity.EntityTypes.WANDERING_TRADER, mc().level);
+            preparePreview(w);
+            return w;
+        }
+        var v = new net.minecraft.world.entity.npc.villager.Villager(net.minecraft.world.entity.EntityTypes.VILLAGER, mc().level);
+        var t = net.minecraft.core.registries.BuiltInRegistries.VILLAGER_TYPE.get(Identifier.parse(type));
+        var p = net.minecraft.core.registries.BuiltInRegistries.VILLAGER_PROFESSION.get(Identifier.parse(profession));
+        if (t.isPresent() && p.isPresent()) v.setVillagerData(new net.minecraft.world.entity.npc.villager.VillagerData(t.get(), p.get(), level));
+        preparePreview(v);
+        return v;
+    }
+
+    private static int previewIds = -1_000_000;
+    /**
+     * Preview entities are never added to the world, but 26.x renderers read the entity ID, so each one gets its own
+     * negative ID (real entities only use positive ones). Also placed where you stand, for lighting and mods.
+     */
+    private static void preparePreview(Entity e) {
+        e.setId(previewIds--);
+        if (mc().player != null) e.setPos(mc().player.getX(), mc().player.getY(), mc().player.getZ());
+    }
+
+    /** A client-only entity of this type (for previews); null when there is no world or it cannot be made. */
+    public static Entity createEntity(String id) {
+        if (mc().level == null) return null;
+        Entity e = net.minecraft.core.registries.BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.parse(id))
+                .map(t -> (Entity) t.create(mc().level, net.minecraft.world.entity.EntitySpawnReason.LOAD)).orElse(null);
+        if (e != null) preparePreview(e);
+        return e;
+    }
+    /** Applies summon-style NBT ("{...}") to an entity, the same way /summon would. */
+    public static void loadNbt(Entity e, String snbt) throws Exception {
+        var reg = mc().level.registryAccess();
+        var out = net.minecraft.world.level.storage.TagValueOutput.createWithContext(net.minecraft.util.ProblemReporter.DISCARDING, reg);
+        e.saveWithoutId(out);
+        CompoundTag t = out.buildResult();
+        t.merge(TagParser.parseCompoundFully(snbt));
+        e.load(net.minecraft.world.level.storage.TagValueInput.create(net.minecraft.util.ProblemReporter.DISCARDING, reg, t));
+    }
+    /** Sorted ids of a registry (e.g. "minecraft:wolf_variant"); empty if this version does not have it. */
+    public static List<String> registryIds(String registry) {
+        List<String> l = new ArrayList<>();
+        if (mc().level == null) return l;
+        mc().level.registryAccess().lookup(net.minecraft.resources.ResourceKey.createRegistryKey(Identifier.parse(registry)))
+                .ifPresent(r -> { for (Object k : r.keySet()) l.add(k.toString()); });
+        Collections.sort(l);
+        return l;
+    }
+
+    /** Curses (the game's own tag, so modded curses count too). */
+    public static boolean enchantCurse(String id) {
+        return reg().get(Identifier.parse(id)).map(h -> h.is(net.minecraft.tags.EnchantmentTags.CURSE)).orElse(false);
+    }
+
+    /** A tamed animal or horse. */
+    public static boolean isPet(Entity e) {
+        return e instanceof net.minecraft.world.entity.TamableAnimal t && t.isTame()
+                || e instanceof net.minecraft.world.entity.animal.equine.AbstractHorse h && h.isTamed();
+    }
+
+    public static float partial() { return mc().getDeltaTracker().getGameTimeDeltaPartialTick(true); }
+    public static boolean screenOpen() { return mc().gui.screen() != null; }
+
+    /** View bobbing right now: walk phase, strength. Null when it is off. */
+    public static double[] bob() {
+        if (!mc().options.bobView().get() || !(mc().getCameraEntity() instanceof net.minecraft.client.player.AbstractClientPlayer pl)) return null;
+        float pt = partial();
+        return new double[] { pl.avatarState().getBackwardsInterpolatedWalkDistance(pt), pl.avatarState().getInterpolatedBob(pt) };
+    }
+
+    /** F1 is hiding the HUD. */
+    public static boolean hudHidden() { return mc().gui.hud.isHidden(); }
+
+    /** x, y, z, yaw, pitch of the camera. */
+    public static double[] camera() {
+        var c = mc().gameRenderer.mainCamera();
+        var v = c.position();
+        return new double[] { v.x, v.y, v.z, c.yRot(), c.xRot() };
+    }
+
+    /** Current vertical field of view, including sprinting and potions. */
+    public static double fov() { return mc().gameRenderer.mainCamera().getFov(); }
+
+    /** Ping in ms from the player list, -1 if unknown. */
+    public static int ping(String name) {
+        ClientPacketListener c = mc().getConnection();
+        PlayerInfo i = c == null ? null : c.getPlayerInfo(name);
+        return i == null ? -1 : i.getLatency();
+    }
+}
