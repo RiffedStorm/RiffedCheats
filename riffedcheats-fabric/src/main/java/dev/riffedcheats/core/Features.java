@@ -250,7 +250,7 @@ public final class Features {
             if (p.onGround()) {
                 if (mc.options.keyUp.isDown() && !p.isShiftKeyDown()) p.setSprinting(true);
                 p.jumpFromGround();
-            } else if (!p.isFallFlying() && p.tryToStartFallFlying()) Compat.sendStartGlide(p);
+            } else if (!p.isFallFlying()) Compat.startGlide(p);
             if (EHOP_PITCH.on && !p.onGround()) p.setXRot(EHOP_ANGLE.value);
             return;
         }

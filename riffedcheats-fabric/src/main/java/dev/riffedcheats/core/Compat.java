@@ -266,8 +266,8 @@ public final class Compat {
         } catch (Throwable ignored) {}
     }
 
-    public static void sendStartGlide(LocalPlayer p) {
-        p.connection.send(new ServerboundPlayerCommandPacket(p, ServerboundPlayerCommandPacket.Action.START_FALL_FLYING));
+    public static void startGlide(LocalPlayer p) {
+        if (p.tryToStartFallFlying()) p.connection.send(new ServerboundPlayerCommandPacket(p, ServerboundPlayerCommandPacket.Action.START_FALL_FLYING));
     }
 
     /** Wearing something that can glide (elytra, modded ones included) that is not broken. */

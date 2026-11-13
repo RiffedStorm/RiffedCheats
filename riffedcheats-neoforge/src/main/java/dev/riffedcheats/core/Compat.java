@@ -210,8 +210,25 @@ public final class Compat {
         if (p != null) p.connection.send(new ServerboundMovePlayerPacket.Pos(x, y, z, onGround));
     }
 
-    public static void sendStartGlide(LocalPlayer p) {
-        p.connection.send(new ServerboundPlayerCommandPacket(p, ServerboundPlayerCommandPacket.Action.START_FALL_FLYING));
+    private static java.lang.reflect.Method caelusStart;
+    private static boolean caelusStartLooked;
+
+    /**
+     * Opens the elytra in the air. A chest elytra goes the vanilla way; an elytra in Elytra Slot (Curios) is opened by
+     * Caelus with its own packet, which the server needs, so Caelus's own client hook is called for that.
+     */
+    public static void startGlide(LocalPlayer p) {
+        if (p.tryToStartFallFlying()) {
+            p.connection.send(new ServerboundPlayerCommandPacket(p, ServerboundPlayerCommandPacket.Action.START_FALL_FLYING));
+            return;
+        }
+        if (!caelusStartLooked) {
+            caelusStartLooked = true;
+            try {
+                caelusStart = Class.forName("com.illusivesoulworks.caelus.mixin.util.ClientMixinHooks", true, p.getClass().getClassLoader()).getMethod("checkFlight");
+            } catch (Throwable ignored) {}
+        }
+        if (caelusStart != null) try { caelusStart.invoke(null); } catch (Throwable ignored) {}
     }
 
     private static net.minecraft.core.Holder<net.minecraft.world.entity.ai.attributes.Attribute> caelusFly;
