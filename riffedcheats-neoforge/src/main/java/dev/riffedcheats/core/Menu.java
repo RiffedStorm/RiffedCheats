@@ -213,9 +213,9 @@ public final class Menu {
     public static final Setting ORE_CUSTOM = opt("Use Custom Blocks", false, "ore.custom");
 
     // ---------------- Settings > Appearance ----------------
-    public static final Setting UI_LAYOUT = pick("Layout", 0, "ui.layout", "Classic", "Modern");
-    public static final Setting UI_THEME = pick("Theme", 0, "ui.theme", "Default", "Dark", "OLED");
-    public static final Setting UI_ACCENT = pick("Accent", 0, "ui.accent", Theme.ACCENT_NAMES);
+    public static final Setting UI_LAYOUT = pick("Layout", 1, "ui.layout", "Classic", "Modern");
+    public static final Setting UI_THEME = pick("Theme", 1, "ui.theme", "Default", "Dark", "OLED");
+    public static final Setting UI_ACCENT = pick("Accent", 1, "ui.accent", Theme.ACCENT_NAMES);
     public static final Setting UI_BACKDROP = pick("Backdrop", 0, "ui.backdrop", "Solid", "See-Through", "Frosted Blur");
     public static final Setting UI_BACKDROP_ALPHA = num("Backdrop Opacity %", 30, 95, 5, 75, "ui.backdropalpha");
     public static final Setting UI_ANIM = opt("Animations", true, "ui.anim");
@@ -368,7 +368,7 @@ public final class Menu {
                 lab("Autosave is ON by default. Turn it off to keep changes temporary."),
                 lab("Your settings are kept in memory when you lose OP and come back when you regain it.")),
             tab("Appearance", UI_LAYOUT, UI_THEME,
-                lab("Classic is the original menu. Modern is the new one; Theme works on both and changes apply right away."),
+                lab("Modern is the default; Classic is the original menu. Theme works on both and changes apply right away."),
                 lab("Modern only:"), UI_ACCENT, UI_BACKDROP, UI_BACKDROP_ALPHA, UI_ANIM, UI_FONT, UI_GLOW,
                 lab("Frosted Blur follows Options > Video Settings > Menu Background Blurriness."),
                 lab("The smooth font (Inter) needs one game restart after updating to this version; until then the normal font is used.")),
@@ -424,6 +424,9 @@ public final class Menu {
         return st == MULTI_CONFIG || st == CONN || st == AUTOSAVE || st == UPDATE_CHECK || st.id().startsWith("ui.");
     }
 
+    /** Marks a settings file saved with the 1.12.1 defaults (Modern, Dark, Emerald). */
+    private static final String UI_REV = "ui.rev";
+
     static Properties snapshot(boolean config) {
         Properties p = new Properties();
         for (Setting st : ALL) {
@@ -431,6 +434,7 @@ public final class Menu {
             p.setProperty(st.id(), st.kind == Setting.Kind.TOGGLE ? Boolean.toString(st.on) : Float.toString(st.value));
         }
         STRINGS.forEach((k, v) -> p.setProperty(STR + k, v));
+        if (!config) p.setProperty(UI_REV, "2");
         return p;
     }
 
@@ -455,6 +459,9 @@ public final class Menu {
         Properties p = new Properties();
         try (var r = Files.newBufferedReader(file())) { p.load(r); } catch (IOException e) { return; }
         apply(p, false);
+        if (p.getProperty(UI_REV) == null) {      // saved before 1.12.1: switch to the new default look once
+            UI_LAYOUT.value = UI_LAYOUT.def; UI_THEME.value = UI_THEME.def; UI_ACCENT.value = UI_ACCENT.def;
+        }
         if (MULTI_CONFIG.on) { String a = Configs.autoload(); if (a != null) Configs.load(a); }
     }
 }

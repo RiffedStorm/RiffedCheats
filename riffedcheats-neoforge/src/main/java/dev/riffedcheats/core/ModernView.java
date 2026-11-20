@@ -23,7 +23,10 @@ public final class ModernView implements MenuUi {
     private int dragX, dragW;
     private boolean barDrag;
 
-    private record Item(Setting s, int x, int y, int w, int h, Setting parent) {}
+    /** lw = room for the row label of a button row (kept on a following unlabeled row, so both rows line up). */
+    private record Item(Setting s, int x, int y, int w, int h, Setting parent, int lw) {
+        Item(Setting s, int x, int y, int w, int h, Setting parent) { this(s, x, y, w, h, parent, 0); }
+    }
     private record Jump(int cat, int tab, String label) {}
     private record Card(String title, List<Item> items, List<Jump> jumps, int h) {}
     private record Hit(Item it, int x, int y) {}
@@ -60,6 +63,9 @@ public final class ModernView implements MenuUi {
             boolean kids = s.kind == Setting.Kind.TOGGLE && i + 1 < list.size() && list.get(i + 1).parent == s;
             boolean child = s.parent != null && s.parent == parent;
             boolean halfW = (s.kind == Setting.Kind.TOGGLE && !kids) || s.kind == Setting.Kind.BUTTON || s.kind == Setting.Kind.RULE;
+            // a name that does not fit half the card gets the whole row instead of being cut
+            int room = s.kind == Setting.Kind.TOGGLE ? 36 : s.kind == Setting.Kind.RULE ? 48 : 16;
+            if (halfW && Gfx.textWidth(s.name) + room > half) halfW = false;
             if (halfW) {
                 if (!left) { out.add(new Item(s, PAD, y, half, RH, null)); left = true; }
                 else { out.add(new Item(s, PAD + half + 8, y, half, RH, null)); left = false; y += RH + GAP; }
@@ -72,8 +78,13 @@ public final class ModernView implements MenuUi {
                     y += 11;
                     lastLabel = true;
                 } else {
-                    int ind = child ? 14 : 0;
-                    out.add(new Item(s, PAD + ind, y, w - 2 * PAD - ind, RH, child ? parent : null));
+                    int ind = child ? 14 : 0, lw = 0;
+                    if (s.kind == Setting.Kind.BUTTONS) {
+                        Setting prev = i > 0 ? list.get(i - 1) : null;
+                        boolean follows = s.name.isEmpty() && prev != null && prev.kind == Setting.Kind.BUTTONS && !prev.name.isEmpty();
+                        lw = !s.name.isEmpty() || follows ? 92 : 0;
+                    }
+                    out.add(new Item(s, PAD + ind, y, w - 2 * PAD - ind, RH, child ? parent : null, lw));
                     y += RH + GAP;
                     lastLabel = false;
                 }
@@ -213,7 +224,9 @@ public final class ModernView implements MenuUi {
         g.push();
         g.translate(x, y);
         g.scale(0.75f);
-        g.text(Ui.fit(g, s, (int) ((SBW - x - 4) / 0.75f)), 0, 0, c);
+        int room = SBW - x - 4, tw = g.width(s);
+        if (tw * 0.75f > room) { float k = Math.max(0.75f, room / (tw * 0.75f)); g.scale(k); s = Ui.fit(g, s, (int) (room / 0.75f / k)); }
+        g.text(s, 0, 0, c);
         g.pop();
     }
 
@@ -345,7 +358,7 @@ public final class ModernView implements MenuUi {
                 if (!it.parent().on) Gfx.alpha = a0 * 0.45f;
             }
             if (!it.s().usable()) Gfx.alpha = a0 * 0.4f;
-            widget(g, it.s(), ax, ay, it.w(), it.h(), mx, my);
+            widget(g, it.s(), ax, ay, it.w(), it.h(), it.lw(), mx, my);
             Gfx.alpha = a0;
             if (!it.s().usable()) chip(g, "Server only", ax + it.w() - 4, ay + 3, Theme.raised2, Theme.dim);
         }
@@ -366,7 +379,7 @@ public final class ModernView implements MenuUi {
         return String.format(Locale.ROOT, "%.2f", v).replaceAll("0+$", "").replaceAll("\\.$", "");
     }
 
-    private void widget(Gfx g, Setting s, int x, int y, int w, int h, int mx, int my) {
+    private void widget(Gfx g, Setting s, int x, int y, int w, int h, int rowLw, int mx, int my) {
         boolean hov = Ui.in(mx, my, x, y, w, h);
         String key = s.id() + "@" + System.identityHashCode(s);
         switch (s.kind) {
@@ -378,12 +391,12 @@ public final class ModernView implements MenuUi {
                 int sx = x + 2, sy = y + 3;
                 Draw.round(g, sx, sy, 22, 12, 6, Theme.mix(Theme.raised2, Theme.accent, k));
                 Draw.circle(g, sx + 2 + Math.round(k * 10), sy + 2, 8, s.on ? 0xFFFFFFFF : Theme.mix(Theme.dim, Theme.text, k));
-                g.text(Ui.fit(g, s.name, w - 34), sx + 29, y + 5, s.on ? Theme.text : Theme.mix(Theme.dim, Theme.text, 0.6f));
+                Ui.label(g, s.name, sx + 29, y + 5, w - 33, s.on ? Theme.text : Theme.mix(Theme.dim, Theme.text, 0.6f));
             }
             case RULE -> {
                 float hv = Anim.to("h" + key, hov ? 1 : 0, 20);
                 if (hv > 0) Draw.round(g, x - 3, y, w + 6, h, 5, Theme.alpha(Theme.raised, (int) (hv * 150)));
-                g.text(Ui.fit(g, s.name, w - 46), x + 2, y + 5, Theme.text);
+                Ui.label(g, s.name, x + 2, y + 5, w - 44, Theme.text);
                 Boolean v = Rules.get(s.opts[0]);
                 int c = v == null ? Theme.raised2 : v ? 0xFF2E8F5A : 0xFF8F3040;
                 Draw.round(g, x + w - 36, y + 3, 34, 12, 6, c);
@@ -396,8 +409,8 @@ public final class ModernView implements MenuUi {
             }
             case BUTTON -> button(g, s.name, x, y, w, h, hov, s.danger, key);
             case BUTTONS -> {
-                int lw = s.name.isEmpty() ? 0 : 92;
-                if (lw > 0) g.text(Ui.fit(g, s.name, lw - 6), x + 2, y + 5, Theme.dim);
+                int lw = rowLw;
+                if (!s.name.isEmpty()) Ui.label(g, s.name, x + 2, y + 5, lw - 6, Theme.dim);
                 int n = s.opts.length, bw = (w - lw - (n - 1) * 4) / n;
                 for (int i = 0; i < n; i++) {
                     int bx = x + lw + i * (bw + 4);
@@ -406,7 +419,7 @@ public final class ModernView implements MenuUi {
             }
             case CHOICE -> {
                 int lw = 92;
-                g.text(Ui.fit(g, s.name, lw - 6), x + 2, y + 5, Theme.text);
+                Ui.label(g, s.name, x + 2, y + 5, lw - 6, Theme.text);
                 int cx = x + lw, cw = w - lw, n = s.opts.length, ow = cw / n;
                 Draw.round(g, cx, y, cw, h, 6, Theme.raised);
                 float ix = Anim.to("c" + key, s.intValue(), 16);
@@ -453,8 +466,7 @@ public final class ModernView implements MenuUi {
         int base = danger ? 0xFF4E2329 : Theme.raised, top = danger ? 0xFF7A2E3A : Theme.raised2;
         Draw.round(g, x, y, w, h, 6, Theme.mix(base, top, hv));
         if (hv > 0.01f) Draw.ring(g, x, y, w, h, 6, Theme.alpha(danger ? 0xF0605C : Theme.accent, (int) (hv * 0x70)));
-        String t = Ui.fit(g, label, w - 10);
-        g.text(t, x + (w - g.width(t)) / 2, y + 5, Theme.text);
+        centered(g, label, x + 3, y + 5, w - 10, Theme.text);
     }
 
     // ================================================================== input
@@ -502,7 +514,7 @@ public final class ModernView implements MenuUi {
                 case BUTTON -> s.action.run();
                 case RULE -> Rules.flip(s.opts[0]);
                 case BUTTONS -> {
-                    int lw = s.name.isEmpty() ? 0 : 92, n = s.opts.length, bw = (w - lw - (n - 1) * 4) / n;
+                    int lw = it.lw(), n = s.opts.length, bw = (w - lw - (n - 1) * 4) / n;
                     for (int i = 0; i < n; i++) if (Ui.in(mx, my, x + lw + i * (bw + 4), y, bw, it.h())) { s.acts[i].run(); break; }
                 }
                 case CHOICE -> {
