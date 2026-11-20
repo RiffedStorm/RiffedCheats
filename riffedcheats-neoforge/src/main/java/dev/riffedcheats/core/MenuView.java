@@ -7,7 +7,7 @@ import java.util.List;
  * The platform Screen scales that space so the menu takes the same share of the window on every
  * resolution and GUI scale, and converts the mouse into design coordinates.
  */
-public final class MenuView {
+public final class MenuView implements MenuUi {
     public static final int DW = 520, DH = 355;
     private static final int SX = 6, SY = 26, SW = 108;
     private static final int CX = 120, CY = 26, CW = DW - 126, CH = DH - 32;

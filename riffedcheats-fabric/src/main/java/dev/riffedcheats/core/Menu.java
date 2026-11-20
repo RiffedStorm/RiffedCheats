@@ -62,6 +62,7 @@ public final class Menu {
     private static Setting eff(String label, String id, int min, int max, int def, int fixed) {
         Setting on = t(label, false);
         Setting lvl = fixed > 0 ? null : s(label + " Level", min, max, 1, def);
+        if (lvl != null) lvl.under(on);
         EFFECTS.add(new Eff(on, lvl, id, fixed));
         return on;
     }
@@ -74,25 +75,25 @@ public final class Menu {
     public static final Setting NOFALL = t("No Fall Damage", false);
 
     public static final Setting FLIGHT = t("Flight", false);
-    public static final Setting FLY_SPEED = s("Fly Speed", 1, 10, 0.5f, 2);
+    public static final Setting FLY_SPEED = s("Fly Speed", 1, 10, 0.5f, 2).under(FLIGHT);
     public static final Setting NOCLIP = t("Noclip (fly through blocks)", false).needsServer();
     public static final Setting SPEED = eff("Walk Speed", "minecraft:speed", 1, 100, 3, 0);
     public static final Setting JUMP = eff("High Jump", "minecraft:jump_boost", 1, 100, 3, 0);
     public static final Setting STEP = t("Step Assist", false);
-    public static final Setting STEP_H = s("Step Height", 1, 10, 0.5f, 2);
+    public static final Setting STEP_H = s("Step Height", 1, 10, 0.5f, 2).under(STEP);
     public static final Setting LOWGRAV = t("Low Gravity", false);
-    public static final Setting GRAV_MULT = s("Gravity Multiplier", 0.05f, 1, 0.05f, 0.3f);
+    public static final Setting GRAV_MULT = s("Gravity Multiplier", 0.05f, 1, 0.05f, 0.3f).under(LOWGRAV);
     public static final Setting INFJUMP = t("Infinite Jump (air jumps)", false);
     public static final Setting AUTOSPRINT = t("Auto Sprint", false);
     public static final Setting BHOP = t("Bunny Hop (auto jump while moving)", false);
     public static final Setting EHOP = t("Elytra Hop (re-open elytra on landing)", false);
     public static final Setting EHOP_HOLD = t("Elytra Hop: Only While Holding Jump", true).option("ehop.hold");
     public static final Setting EHOP_PITCH = t("Elytra Hop: Lock Pitch", false).option("ehop.pitch");
-    public static final Setting EHOP_ANGLE = s("Pitch Angle (down)", 0, 90, 1, 75).option("ehop.angle");
+    public static final Setting EHOP_ANGLE = s("Pitch Angle (down)", 0, 90, 1, 75).option("ehop.angle").under(EHOP_PITCH);
 
     public static final Setting REACH = t("Extended Reach", false);
-    public static final Setting BLOCK_REACH = s("Block Reach", 4.5f, 20, 0.5f, 8);
-    public static final Setting ENTITY_REACH = s("Entity Reach", 3, 10, 0.5f, 6);
+    public static final Setting BLOCK_REACH = s("Block Reach", 4.5f, 20, 0.5f, 8).under(REACH);
+    public static final Setting ENTITY_REACH = s("Entity Reach", 3, 10, 0.5f, 6).under(REACH);
 
     public static final Setting HASTE = eff("Haste (fast mining)", "minecraft:haste", 1, 100, 3, 0);
     public static final Setting STRENGTH = eff("Strength", "minecraft:strength", 1, 100, 3, 0);
@@ -107,12 +108,12 @@ public final class Menu {
     public static final Setting DOLPHIN = eff("Dolphin's Grace", "minecraft:dolphins_grace", 1, 1, 1, 1);
 
     public static final Setting XP_FREEZE = t("Freeze XP Level", false);
-    public static final Setting XP_LEVEL = s("Target Level", 0, 2000, 1, 30);
+    public static final Setting XP_LEVEL = s("Target Level", 0, 2000, 1, 30).under(XP_FREEZE);
 
     // ---------------- Combat ----------------
     public static final Setting AURA = t("Kill Aura", false);
-    public static final Setting AURA_RANGE = s("Aura Range", 1, 12, 0.5f, 4);
-    public static final Setting AURA_DELAY = s("Aura Delay (ticks)", 1, 20, 1, 4);
+    public static final Setting AURA_RANGE = s("Aura Range", 1, 12, 0.5f, 4).under(AURA);
+    public static final Setting AURA_DELAY = s("Aura Delay (ticks)", 1, 20, 1, 4).under(AURA);
     public static final Setting AURA_HOSTILE = t("Hostile Mobs Only", true);
     public static final Setting AURA_PLAYERS = t("Target Players", false);
     public static final Setting AURA_WALLS = t("Hit Through Walls", true);
@@ -176,7 +177,7 @@ public final class Menu {
     public static final Setting AIM_PRIORITY = pick("Melee Priority", 0, "aim.priority", "Crosshair", "Closest", "Low Health");
     public static final Setting AIM_PRIORITY_BOW = pick("Bow Priority", 0, "aim.prioritybow", "Crosshair", "Closest", "Low Health");
     public static final Setting AIM_CLOSEST_ALL = opt("Closest: Snap to Nearby Enemies Outside FoV", false, "aim.closestall");
-    public static final Setting AIM_SNAP = num("Snap Distance (blocks)", 1, 32, 0.5f, 2, "aim.snap");
+    public static final Setting AIM_SNAP = num("Snap Distance (blocks)", 1, 32, 0.5f, 2, "aim.snap").under(AIM_CLOSEST_ALL);
     public static final Setting AIM_WALLS = opt("Aim Through Walls", false, "aim.walls"), AIM_STICKY = opt("Stay On Target", true, "aim.sticky");
     public static final Setting AIM_AUTOHIT = opt("Auto Attack", false, "aim.autohit"), AIM_BOW = opt("Bow + Trident Prediction", true, "aim.bow");
     public static final Setting AIM_LEAD = opt("Lead Moving Targets", true, "aim.lead"), AIM_TEAM = opt("Ignore Teammates", true, "aim.team");
@@ -192,11 +193,11 @@ public final class Menu {
     public static final Setting ORE_MAX = num("Max Outlines", 16, 1000, 16, 256, "ore.max");
     public static final Setting ORE_THICK = num("Line Thickness (pixels)", 1, 4, 1, 2, "ore.thick");
     public static final Setting ORE_TRACERS = opt("Tracer Lines", false, "ore.tracers");
-    public static final Setting ORE_TRACER_FROM = pick("Tracers Start At", 0, "ore.tracerfrom", "Crosshair", "Bottom");
+    public static final Setting ORE_TRACER_FROM = pick("Tracers Start At", 0, "ore.tracerfrom", "Crosshair", "Bottom").under(ORE_TRACERS);
     public static final Setting ORE_OUTLINE = opt("Outlines", true, "ore.outline");
     public static final Setting ORE_OPACITY = num("Outline Opacity %", 10, 100, 5, 100, "ore.opacity");
     public static final Setting ORE_FILL = opt("Filled Boxes", false, "ore.fill");
-    public static final Setting ORE_FILL_OPACITY = num("Fill Opacity %", 5, 90, 5, 25, "ore.fillopacity");
+    public static final Setting ORE_FILL_OPACITY = num("Fill Opacity %", 5, 90, 5, 25, "ore.fillopacity").under(ORE_FILL);
     public static final Setting ORE_FADE = opt("Fade With Distance", false, "ore.fade");
     public static final Setting ORE_NAMES = opt("Block Names", false, "ore.names"), ORE_DIST = opt("Distance", false, "ore.dist");
     public static final Setting ORE_RAINBOW = opt("Rainbow Colors", false, "ore.rainbow");
@@ -211,10 +212,20 @@ public final class Menu {
     public static final Setting ORE_OTHER = opt("Modded / Other Ores", true, "ore.other");
     public static final Setting ORE_CUSTOM = opt("Use Custom Blocks", false, "ore.custom");
 
+    // ---------------- Settings > Appearance ----------------
+    public static final Setting UI_LAYOUT = pick("Layout", 0, "ui.layout", "Classic", "Modern");
+    public static final Setting UI_THEME = pick("Theme", 0, "ui.theme", "Default", "Dark", "OLED");
+    public static final Setting UI_ACCENT = pick("Accent", 0, "ui.accent", Theme.ACCENT_NAMES);
+    public static final Setting UI_BACKDROP = pick("Backdrop", 0, "ui.backdrop", "Solid", "See-Through", "Frosted Blur");
+    public static final Setting UI_BACKDROP_ALPHA = num("Backdrop Opacity %", 30, 95, 5, 75, "ui.backdropalpha");
+    public static final Setting UI_ANIM = opt("Animations", true, "ui.anim");
+    public static final Setting UI_FONT = opt("Smooth Font", true, "ui.font");
+    public static final Setting UI_GLOW = opt("Glow + Shadow", true, "ui.glow");
+
     // ---------------- Items > Helpers ----------------
     public static final Setting AUTO_REPAIR = t("Auto Repair Gear", false).needsServer();
     public static final Setting MAGNET = t("Item + XP Magnet", false).needsServer();
-    public static final Setting MAGNET_RANGE = s("Magnet Range", 2, 32, 1, 10).needsServer();
+    public static final Setting MAGNET_RANGE = s("Magnet Range", 2, 32, 1, 10).needsServer().under(MAGNET);
 
     // ---------------- ProtoManly's Weather (only when the mod is installed) ----------------
     public static final Setting PM_SC_STAGE = s("Supercell Stage", 0, 2, 1, 1), PM_SC_ENERGY = s("Supercell Energy", 1, 99, 1, 50);
@@ -356,6 +367,11 @@ public final class Menu {
                 b("Reset Server Attributes + Effects", Features::resetServerState),
                 lab("Autosave is ON by default. Turn it off to keep changes temporary."),
                 lab("Your settings are kept in memory when you lose OP and come back when you regain it.")),
+            tab("Appearance", UI_LAYOUT, UI_THEME,
+                lab("Classic is the original menu. Modern is the new one; Theme works on both and changes apply right away."),
+                lab("Modern only:"), UI_ACCENT, UI_BACKDROP, UI_BACKDROP_ALPHA, UI_ANIM, UI_FONT, UI_GLOW,
+                lab("Frosted Blur follows Options > Video Settings > Menu Background Blurriness."),
+                lab("The smooth font (Inter) needs one game restart after updating to this version; until then the normal font is used.")),
             page("Configs", new ConfigsPage()),
             page("Server", new ServerPage()),
             page("Updates", new UpdatesPage()));
@@ -404,7 +420,9 @@ public final class Menu {
     static void putStr(String k, String v) { STRINGS.put(k, v); }
 
     /** Settings about the menu itself, which a named config must not change. */
-    private static boolean notInConfig(Setting st) { return st == MULTI_CONFIG || st == CONN || st == AUTOSAVE || st == UPDATE_CHECK; }
+    private static boolean notInConfig(Setting st) {
+        return st == MULTI_CONFIG || st == CONN || st == AUTOSAVE || st == UPDATE_CHECK || st.id().startsWith("ui.");
+    }
 
     static Properties snapshot(boolean config) {
         Properties p = new Properties();

@@ -5,7 +5,8 @@ import java.util.List;
 import net.minecraft.world.item.ItemStack;
 
 public final class Ui {
-    public static final int BG = 0xF0101426, PANEL = 0xFF171B34, BTN = 0xFF26305A, SEL = 0xFF3B4C8C,
+    /** Set by Theme.apply() before each menu frame; these starting values are the Classic Default theme. */
+    public static int BG = 0xF0101426, PANEL = 0xFF171B34, BTN = 0xFF26305A, SEL = 0xFF3B4C8C,
             HOVER = 0xFF2F3B70, ACCENT = 0xFF6C8CF0, TEXT = 0xFFE8EAF6, DIM = 0xFF8E94B8,
             GREEN = 0xFF4CAF7A, RED = 0xFFE05C5C, REDBTN = 0xFF5A2630, REDHOV = 0xFF7A3040, DARK = 0xFF10132A;
 

@@ -15,9 +15,37 @@ public final class Gfx {
     public static Gfx of(Object g) { return new Gfx((GuiGraphicsExtractor) g); }
 
     private static Font font() { return Minecraft.getInstance().font; }
-    public static int textWidth(String s) { return font().width(s); }
 
-    public void fill(int x1, int y1, int x2, int y2, int argb) { g.fill(x1, y1, x2, y2, argb); }
+    /** Text in the Modern layout's smooth font (Inter) instead of the pixel font. */
+    public static boolean smooth;
+    /** Fade of everything drawn (Modern open / page animations); 1 = normal. */
+    public static float alpha = 1f;
+
+    private static final net.minecraft.network.chat.FontDescription UI = new net.minecraft.network.chat.FontDescription.Resource(
+            net.minecraft.resources.Identifier.fromNamespaceAndPath("riffedcheats", "ui")),
+            UI_BOLD = new net.minecraft.network.chat.FontDescription.Resource(net.minecraft.resources.Identifier.fromNamespaceAndPath("riffedcheats", "ui_bold"));
+
+    private static Component styled(String s, boolean bold) { return Component.literal(s).withStyle(st -> st.withFont(bold ? UI_BOLD : UI)); }
+
+    /** The smooth font's files are loaded (a fresh jar's assets only arrive with a game restart). */
+    public static boolean fontReady() {
+        try {
+            return Minecraft.getInstance().getResourceManager()
+                    .getResource(net.minecraft.resources.Identifier.fromNamespaceAndPath("riffedcheats", "font/ui.json")).isPresent();
+        } catch (Throwable t) { return false; }
+    }
+
+    private static int fade(int argb) {
+        if (alpha >= 1f) return argb;
+        int a = argb >>> 24;
+        if (a == 0) a = 255;          // text colors without alpha are drawn opaque
+        return Math.round(a * Math.max(0, alpha)) << 24 | (argb & 0xFFFFFF);
+    }
+
+    public static int textWidth(String s) { return smooth ? font().width(styled(s, false)) : font().width(s); }
+    public static int boldWidth(String s) { return smooth ? font().width(styled(s, true)) : font().width(s); }
+
+    public void fill(int x1, int y1, int x2, int y2, int argb) { g.fill(x1, y1, x2, y2, fade(argb)); }
     // The text method was renamed/reshaped in 26.x, so it is looked up once and cached.
     private static Method TEXT;
     private static boolean TEXT_COMPONENT;
@@ -30,14 +58,36 @@ public final class Gfx {
             if (TEXT == null || (str && TEXT_COMPONENT) || (str == !TEXT_COMPONENT && t.length == 6)) { TEXT = m; TEXT_COMPONENT = comp; }
         }
     }
-    public void text(String s, int x, int y, int argb) {
+    private static Method TEXT_C;       // the Component variant, for the smooth font
+    static {
+        for (Method m : GuiGraphicsExtractor.class.getMethods()) {
+            Class<?>[] t = m.getParameterTypes();
+            if (!m.getName().equals("text") || t.length < 5 || t.length > 6 || t[0] != Font.class || t[1] != Component.class) continue;
+            if (TEXT_C == null || t.length == 6) TEXT_C = m;
+        }
+    }
+    private void draw(String s, int x, int y, int argb, boolean bold) {
+        int c = fade(argb);
+        if (alpha < 1f && (c >>> 24) < 5) return;
         try {
+            if (smooth && TEXT_C != null) {
+                Component t = styled(s, bold);
+                if (TEXT_C.getParameterCount() == 6) TEXT_C.invoke(g, font(), t, x, y, c, false); else TEXT_C.invoke(g, font(), t, x, y, c);
+                return;
+            }
             Object str = TEXT_COMPONENT ? Component.literal(s) : s;
-            if (TEXT.getParameterCount() == 6) TEXT.invoke(g, font(), str, x, y, argb, false);
-            else TEXT.invoke(g, font(), str, x, y, argb);
+            if (TEXT.getParameterCount() == 6) TEXT.invoke(g, font(), str, x, y, c, false);
+            else TEXT.invoke(g, font(), str, x, y, c);
         } catch (Throwable ignored) {}
     }
-    public int width(String s) { return font().width(s); }
+    public void text(String s, int x, int y, int argb) { draw(s, x, y, argb, false); }
+    /** Semi-bold in the smooth font, normal text otherwise. */
+    public void bold(String s, int x, int y, int argb) { draw(s, x, y, argb, true); }
+    public int width(String s) { return textWidth(s); }
+
+    /** Only draw inside this box (menu units) until unclip(); this version applies the menu's scaling itself. */
+    public void clip(int x0, int y0, int x1, int y1) { g.enableScissor(x0, y0, x1, y1); }
+    public void unclip() { g.disableScissor(); }
     public void item(ItemStack st, int x, int y) { g.item(st, x, y); }
     public void decorations(ItemStack st, int x, int y) { g.itemDecorations(font(), st, x, y); }
     public void itemScaled(ItemStack st, float x, float y, float sc) { push(); translate(x, y); scale(sc); g.item(st, 0, 0); pop(); }

@@ -15,6 +15,8 @@ public final class Setting {
     public boolean danger;          // BUTTON: drawn red
     public boolean serverOnly;      // works only when RiffedCheats is on the server too
     public boolean keep;            // an option, not a feature: Disable All leaves it alone
+    /** Shown indented under this switch in the Modern layout, and dimmed while it is off. */
+    public Setting parent;
     private String saveId;          // config key when the shown name is not unique
 
     private Setting(String name, Kind kind, boolean on, float value, float min, float max, float step, Runnable action,
@@ -30,6 +32,7 @@ public final class Setting {
     public boolean usable() { return !serverOnly || Access.server(); }
     public Setting needsServer() { serverOnly = true; return this; }
     public Setting red() { danger = true; return this; }
+    public Setting under(Setting p) { parent = p; return this; }
     /** An option of a feature, saved under its own id, so several features can show the same name. */
     public Setting option(String id) { saveId = id; keep = true; return this; }
     public String id() { return saveId != null ? saveId : name; }
